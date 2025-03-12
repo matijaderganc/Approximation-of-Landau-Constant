@@ -1,0 +1,10 @@
+[package]
+name = "poskusno"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+num-complex = "0.4"
+nalgebra = "0.32"
+rand = "0.8"
+plotters = "0.3"
