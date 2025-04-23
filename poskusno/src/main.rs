@@ -10,12 +10,12 @@ use std::cmp::Ordering;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
 struct Dyadic {
-    numerator : i64 ,
+    numerator : i128 ,
     exponent : i32 ,
 }
 
 impl Dyadic {
-    fn new(num : i64, exp : i32) -> Self {
+    fn new(num : i128, exp : i32) -> Self {
         Dyadic {numerator : num, exponent : exp}
     }
     fn to_f64(&self) -> f64 {
@@ -82,19 +82,10 @@ impl Interval {
         }
 
     }
-
-  
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Letter {
-    One ,
-    Two ,
-    Three, 
-    Four
 }
 impl fmt::Display for Dyadic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:.15}", self.to_f64()) // Prints with 6 decimal places
+        write!(f, "{:.30}", self.to_f64()) // Prints with 6 decimal places
     }
 }
 impl fmt::Display for Interval {
@@ -141,10 +132,8 @@ fn main() {
     let w = Dyadic::new(7, 6);
 
     let i1 = Interval::new(x, y, z, w);
-    let i2 = split(i1, 3);
-    println!("{}, {}", i1, i2);
     let mut word = LinkedList::new();
-    for _ in 0..61 {
+    for _ in 0..5 {
         word.push_back(1);
     }
     let i3 = psi(i1, &word) ;
