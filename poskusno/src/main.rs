@@ -130,14 +130,14 @@ fn main() {
     let x = Dyadic::new(3, 5);
     let z = Dyadic::new(4, 6);
     let w = Dyadic::new(7, 6);
-
+    println!("{}", x.to_f64()) ;
     let i1 = Interval::new(x, y, z, w);
     let mut word = LinkedList::new();
     for _ in 0..5 {
         word.push_back(1);
     }
     let i3 = psi(i1, &word) ;
-    print!("{}", i3)
+    // print!("{}", i3)
    
 }
 
