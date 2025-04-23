@@ -195,7 +195,6 @@ fn split(rect : Interval, n : u8) -> Interval {
 } 
 
 fn psi(int1 : Interval, lst : &LinkedList<u8>) -> Interval {
-    // Kaj je tukaj misljeno z lst.front()?
     match lst.front() {
         None => int1 ,
         Some(&fst) => psi(split(int1, fst), &lst.iter().skip(1).cloned().collect())
