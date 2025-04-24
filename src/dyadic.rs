@@ -24,7 +24,7 @@ impl Dyadic {
     }
     // This is used to determine if a number is zero, which need to be checked before division 
     fn zero() -> Dyadic {
-        Dyadic {numerator : 0, exponent : 0} 
+      Dyadic {numerator : 0, exponent : 0} 
     }
 }
 
