@@ -1,2 +1,2 @@
 pub mod dyadic;
-pub mod psy ;
+pub mod psi ;

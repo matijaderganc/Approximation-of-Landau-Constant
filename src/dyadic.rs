@@ -140,6 +140,13 @@ impl Interval {
             Interval::Bounded(x_lower, x_upper, y_lower, y_upper)
         }
     }
+    pub fn midpoint(&self) -> Option<ComplexDyadic> {
+        match self {
+            Interval::Empty => None ,
+            Interval::Bounded(x_lower, x_upper, y_lower,y_upper) =>
+            Some(ComplexDyadic::new((*x_lower + *x_upper) * Dyadic::new(1, -1), (*y_lower + *y_upper) * Dyadic::new(1, -1)))
+        }
+    }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
