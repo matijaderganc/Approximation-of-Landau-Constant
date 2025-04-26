@@ -1,5 +1,5 @@
 [package]
-name = "Approximation-of-Landau-Constant"
+name = "landau"
 version = "0.1.0"
 edition = "2024"
 

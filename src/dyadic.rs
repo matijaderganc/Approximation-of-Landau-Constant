@@ -20,7 +20,7 @@ impl Dyadic {
         Dyadic {numerator : num, exponent : exp}
     }
     fn to_f64(&self) -> f64 {
-        (self.numerator as f64) / (2.0f64).powi(self.exponent)
+        (self.numerator as f64) * (2.0f64).powi(self.exponent)
     }
     // This is used to determine if a number is zero, which need to be checked before division 
     fn zero() -> Dyadic {
@@ -33,10 +33,10 @@ impl Add for Dyadic {
     fn add(self, other : Dyadic) -> Dyadic {
         let exp_diff = self.exponent - other.exponent;
         if exp_diff > 0 {
-            Dyadic::new(self.numerator + (other.numerator << exp_diff), self.exponent)
+            Dyadic::new(other.numerator + (self.numerator << exp_diff), other.exponent)
         }
         else {
-            Dyadic::new((self.numerator << -exp_diff) + other.numerator, other.exponent)
+            Dyadic::new((other.numerator << -exp_diff) + self.numerator, self.exponent)
         }
     }
 }
@@ -77,46 +77,46 @@ impl PartialOrd for Dyadic {
 }
 
 // Define type ComplexDyadic
-struct ComplexDyadic {
-    re : Dyadic 
-    im : Dyadic 
-}
+// struct ComplexDyadic {
+//     re : Dyadic 
+//     im : Dyadic 
+// }
 
-impl ComplexDyadic {
-    fn new(re : Dyadic, im : Dyadic) -> ComplexDyadic {
-        ComplexDyadic{re : re, im : im}
-    }
-}
+// impl ComplexDyadic {
+//     fn new(re : Dyadic, im : Dyadic) -> ComplexDyadic {
+//         ComplexDyadic{re : re, im : im}
+//     }
+// }
 
-impl Add for ComplexDyadic {
-    type Output = ComplexDyadic
-    fn add(self, other : ComplexDyadic) -> ComplexDyadic {
-        return ComplexDyadic::new(self.re + other.re, self.im + other.im) // Does this compile?
-    }
-}
+// impl Add for ComplexDyadic {
+//     type Output = ComplexDyadic
+//     fn add(self, other : ComplexDyadic) -> ComplexDyadic {
+//         return ComplexDyadic::new(self.re + other.re, self.im + other.im) // Does this compile?
+//     }
+// }
 
-impl Sub for ComplexDyadic {
-    type Output = ComplexDyadic
-    fn sub(self, other : ComplexDyadic) -> ComplexDyadic {
-        return ComplexDyadic::new(self.re - other.re, self.im - other.im) // Is this in line with definitions of add and sub for Dyadic numbers? 
-    }
-}
+// impl Sub for ComplexDyadic {
+//     type Output = ComplexDyadic
+//     fn sub(self, other : ComplexDyadic) -> ComplexDyadic {
+//         return ComplexDyadic::new(self.re - other.re, self.im - other.im) // Is this in line with definitions of add and sub for Dyadic numbers? 
+//     }
+// }
 
-impl Mul for ComplexDyadic {
-    type Output = ComplexDyadic
-    fn mul(self, other : ComplexDyadic) -> ComplexDyadic {
-        return ComplexDyadic::new(self.re * other.re - self.im * other.im, self.re * other.im + self.im * other.re) // Again, we need to make sure this runs in terms of operations
-    }
-}
+// impl Mul for ComplexDyadic {
+//     type Output = ComplexDyadic
+//     fn mul(self, other : ComplexDyadic) -> ComplexDyadic {
+//         return ComplexDyadic::new(self.re * other.re - self.im * other.im, self.re * other.im + self.im * other.re) // Again, we need to make sure this runs in terms of operations
+//     }
+// }
 
-impl Div for ComplexDyadic {
-    type Output = ComplexDyadic 
-    fn div(self, other : ComplexDyadic) -> ComplexDyadic {
-        if other.re != Dyadic::zero() && other.im != Dyadic::zero() {
-            ComplexDyadic::new((self.re * other.re + self.im * other.im) / (other.re * other.re + other.im * other.im), (self.im * other.re - self.re * other.im) / (other.re * other.re + other.im * other.im)) // Check if operations work as needed 
-        }
-    }
-}
+// impl Div for ComplexDyadic {
+//     type Output = ComplexDyadic 
+//     fn div(self, other : ComplexDyadic) -> ComplexDyadic {
+//         if other.re != Dyadic::zero() && other.im != Dyadic::zero() {
+//             ComplexDyadic::new((self.re * other.re + self.im * other.im) / (other.re * other.re + other.im * other.im), (self.im * other.re - self.re * other.im) / (other.re * other.re + other.im * other.im)) // Check if operations work as needed 
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 

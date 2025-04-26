@@ -1,3 +1,4 @@
+use Landau::dyadic::{Dyadic} ;
 fn main() {
-    println!("Hello, world!");
+    let x = Dyadic::new(5, 3);
 }
