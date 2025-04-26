@@ -1,6 +1,6 @@
 use std::collections::LinkedList;
 //use num_complex::Complex;
-use std::fmt::{self, UpperExp};
+use std::fmt::{self, write, UpperExp};
 
 use std::io::Empty;
 use std::ops::{Add, Mul, Sub, Div}; //division not yet implemented
@@ -10,20 +10,20 @@ use std::cmp::Ordering;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
 // Define dyadic type
-struct Dyadic {
-    numerator : i128 ,
-    exponent : i32 ,
+pub struct Dyadic {
+    pub numerator : i128 ,
+    pub exponent : i32 ,
 }
 
 impl Dyadic {
-    fn new(num : i128, exp : i32) -> Self {
+    pub fn new(num : i128, exp : i32) -> Self {
         Dyadic {numerator : num, exponent : exp}
     }
-    fn to_f64(&self) -> f64 {
+    pub fn to_f64(&self) -> f64 {
         (self.numerator as f64) * (2.0f64).powi(self.exponent)
     }
     // This is used to determine if a number is zero, which need to be checked before division 
-    fn zero() -> Dyadic {
+    pub fn zero() -> Dyadic {
       Dyadic {numerator : 0, exponent : 0} 
     }
 }
@@ -47,9 +47,9 @@ impl Sub for Dyadic {
         let exp_diff = self.exponent - other.exponent;
 
         if exp_diff > 0 {
-            Dyadic::new(self.numerator - (other.numerator << exp_diff), self.exponent)
+            Dyadic::new(- other.numerator + (self.numerator << exp_diff), other.exponent)
         } else {
-            Dyadic::new((self.numerator << -exp_diff) - other.numerator, other.exponent)
+            Dyadic::new(-(other.numerator << -exp_diff) + self.numerator, self.exponent)
         }
     }
 }
@@ -61,14 +61,14 @@ impl Mul for Dyadic {
     }
 }
 
-impl Div for Dyadic {
-    type Output = Dyadic
-    fn div(self, other : Dyadic) -> Dyadic {
-        if other != Dyadic::zero() {
+// impl Div for Dyadic {
+//     type Output = Dyadic
+//     fn div(self, other : Dyadic) -> Dyadic {
+//         if other != Dyadic::zero() {
 
-        }
-    }
-}
+//         }
+//     }
+// }
 
 impl PartialOrd for Dyadic {
     fn partial_cmp(&self, other: &Dyadic) -> Option<Ordering> {
@@ -77,37 +77,38 @@ impl PartialOrd for Dyadic {
 }
 
 // Define type ComplexDyadic
-// struct ComplexDyadic {
-//     re : Dyadic 
-//     im : Dyadic 
-// }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ComplexDyadic {
+    pub re : Dyadic ,
+    pub im : Dyadic ,
+}
 
-// impl ComplexDyadic {
-//     fn new(re : Dyadic, im : Dyadic) -> ComplexDyadic {
-//         ComplexDyadic{re : re, im : im}
-//     }
-// }
+impl ComplexDyadic {
+    pub fn new(re : Dyadic, im : Dyadic) -> ComplexDyadic {
+        ComplexDyadic{re : re, im : im}
+    }
+}
 
-// impl Add for ComplexDyadic {
-//     type Output = ComplexDyadic
-//     fn add(self, other : ComplexDyadic) -> ComplexDyadic {
-//         return ComplexDyadic::new(self.re + other.re, self.im + other.im) // Does this compile?
-//     }
-// }
+impl Add for ComplexDyadic {
+    type Output = ComplexDyadic ;
+    fn add(self, other : ComplexDyadic) -> ComplexDyadic {
+        return ComplexDyadic::new(self.re + other.re, self.im + other.im) // Does this compile?
+    }
+}
 
-// impl Sub for ComplexDyadic {
-//     type Output = ComplexDyadic
-//     fn sub(self, other : ComplexDyadic) -> ComplexDyadic {
-//         return ComplexDyadic::new(self.re - other.re, self.im - other.im) // Is this in line with definitions of add and sub for Dyadic numbers? 
-//     }
-// }
+impl Sub for ComplexDyadic {
+    type Output = ComplexDyadic ;
+    fn sub(self, other : ComplexDyadic) -> ComplexDyadic {
+        return ComplexDyadic::new(self.re - other.re, self.im - other.im) // Is this in line with definitions of add and sub for Dyadic numbers? 
+    }
+}
 
-// impl Mul for ComplexDyadic {
-//     type Output = ComplexDyadic
-//     fn mul(self, other : ComplexDyadic) -> ComplexDyadic {
-//         return ComplexDyadic::new(self.re * other.re - self.im * other.im, self.re * other.im + self.im * other.re) // Again, we need to make sure this runs in terms of operations
-//     }
-// }
+impl Mul for ComplexDyadic {
+    type Output = ComplexDyadic ;
+    fn mul(self, other : ComplexDyadic) -> ComplexDyadic {
+        return ComplexDyadic::new(self.re * other.re - self.im * other.im, self.re * other.im + self.im * other.re) // Again, we need to make sure this runs in terms of operations
+    }
+}
 
 // impl Div for ComplexDyadic {
 //     type Output = ComplexDyadic 
@@ -121,14 +122,14 @@ impl PartialOrd for Dyadic {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
 // Define interval type 
-enum Interval {
+pub enum Interval {
     Empty , 
     Bounded(Dyadic, Dyadic, Dyadic, Dyadic),
 }
 
 // Implement constructor for type interval 
 impl Interval {
-    fn new(x_lower : Dyadic, x_upper : Dyadic, y_lower : Dyadic, y_upper : Dyadic) -> Interval {
+    pub fn new(x_lower : Dyadic, x_upper : Dyadic, y_lower : Dyadic, y_upper : Dyadic) -> Interval {
         if x_lower > x_upper {
             Interval::Empty
         }
@@ -138,10 +139,7 @@ impl Interval {
         else {
             Interval::Bounded(x_lower, x_upper, y_lower, y_upper)
         }
-
     }
-
-  
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
@@ -155,7 +153,7 @@ enum Letter {
 
 struct Word {
     length : i32, 
-    // Luka : Words could be lists of vectors
+    // Luka : Words could be lists of vectors (Luka probably meant or)
 }
 
 impl fmt::Display for Dyadic {
@@ -176,6 +174,17 @@ impl fmt::Display for Interval {
     }
 }
 
+impl fmt::Display for ComplexDyadic {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt:: Result {
+        if self.im.numerator >= 0 {
+            write!(f, "{} + {}i", self.re, self.im)
+        } else {
+            write!(f, "{} - {}i", self.re, Dyadic::new(-self.im.numerator, self.im.exponent))
+        }
+    }
+    }
+
+
 fn split(rect : Interval, n : u8) -> Interval {
     match rect {
         Interval::Empty => Interval::Empty,
@@ -194,27 +203,10 @@ fn split(rect : Interval, n : u8) -> Interval {
     }
 } 
 
-fn psi(int1 : Interval, lst : &LinkedList<u8>) -> Interval {
-    // Kaj je tukaj misljeno z lst.front()?
+pub fn psi(int1 : Interval, lst : &LinkedList<u8>) -> Interval {
     match lst.front() {
         None => int1 ,
-        Some(&fst) => psi(split(int1, fst), &lst.iter().skip(1).cloned().collect())
+        Some(&fst) => psi(split(int1, fst), &lst.iter().skip(1).cloned().collect() )
     }
-}
-
-fn main() {
-    let y = Dyadic::new(10, 5) ;
-    let x = Dyadic::new(3, 5);
-    let z = Dyadic::new(4, 6);
-    let w = Dyadic::new(7, 6);
-    println!("{}", x.to_f64()) ;
-    let i1 = Interval::new(x, y, z, w);
-    let mut word = LinkedList::new();
-    for _ in 0..5 {
-        word.push_back(1);
-    }
-    let i3 = psi(i1, &word) ;
-    // print!("{}", i3)
-   
 }
 

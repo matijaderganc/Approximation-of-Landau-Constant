@@ -12,4 +12,4 @@ nato narediti zaporedje b1, b2, ... za katerega držijo dovolj lepe stvari
 
 od nekje dobit cifro e
 
-POPRAVI diadic
+TODO kranšanje dyadic?
