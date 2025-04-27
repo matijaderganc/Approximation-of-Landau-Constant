@@ -125,6 +125,14 @@ impl ComplexDyadic {
         }
         result
     }
+
+    pub fn one() -> ComplexDyadic {
+        ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0))
+    }
+
+    pub fn zero() -> ComplexDyadic {
+        ComplexDyadic::new(Dyadic::zero(), Dyadic::zero())
+    }
 }
 
 impl Add for ComplexDyadic {
