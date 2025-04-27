@@ -64,6 +64,18 @@ impl Add for ExpansionCoefficients {
     }
 }
 
+impl Sub for ExpansionCoefficients {
+    type Output = Self; 
+
+    fn sub(self, other : Self) -> Self {
+        let left = self.n_th;
+        let right = other.n_th;
+        Self {
+            n_th: Arc::new(move |n| left(n) - right(n))
+        }
+    }
+}
+
 impl ExpansionCoefficients {
     pub fn new<F>(f: F) -> Self
     where
@@ -124,5 +136,17 @@ impl Add for ComplexFunction {
             self.expansion_coefficients + other.expansion_coefficients,
             std::cmp::max(self.upper_limit_of_summation, other.upper_limit_of_summation)
             )    
+    }
+}
+
+impl Sub for ComplexFunction {
+    type Output = Self;
+
+    fn sub(self, other : Self) -> Self {
+        Self::new_with_upper_limit(
+            self.bounding_sequence + other.bounding_sequence, 
+            self.expansion_coefficients - other.expansion_coefficients, 
+            std::cmp::max(self.upper_limit_of_summation, other.upper_limit_of_summation),
+        )
     }
 }
