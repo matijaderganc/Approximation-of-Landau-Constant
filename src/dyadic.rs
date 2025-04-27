@@ -27,6 +27,26 @@ impl Dyadic {
     pub fn zero() -> Dyadic {
       Dyadic {numerator : 0, exponent : 0} 
     }
+
+    pub fn powi(self, power: i32) -> Self {
+        if power == 0 {
+            return Dyadic::new(1, 0);
+        }
+
+        let new_numerator = if power > 0 {
+            self.numerator.pow(power as u32)
+        } else {
+            // Negative power: numerator will be in denominator
+            1 // simplified: we will adjust exponent instead
+        };
+
+        let new_exponent = self.exponent * power - if power < 0 { (self.numerator.abs().ilog2() as i32) * power.abs() } else { 0 };
+
+        Dyadic {
+            numerator: new_numerator,
+            exponent: new_exponent,
+        }
+    }
 }
 
 impl Add for Dyadic {  
@@ -92,6 +112,18 @@ impl ComplexDyadic {
         let real = self.re.to_f64() ;
         let im = self.im.to_f64() ;
         return (real * real + im * im).sqrt()
+    }
+
+    pub fn powi(self, mut power: i32) -> Self {
+        if power == 0 {
+            return ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0));
+        }
+
+        let mut result = self;
+        for _ in 1..power {
+            result = result * self;
+        }
+        result
     }
 }
 
