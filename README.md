@@ -1,5 +1,6 @@
 # Approximation-of-Landau-Constant
-Programiranje 2 project
+Goal of the project is to compute the Landau's constant for any accuracy bound. The implemented algorithm is based on the paper [here](https://lmcs.episciences.org/1189/pdf).
+
 Kaj bi bilo potrebno implementirati?
 Torej, funkicja psi neskončno deluje po naslednjem principu:
 imamo m1, m2, ... pozitivna diadična števila, tako da potenčna vrsta s temi koeficienti konvergira na enotskem disku. (od kje dobimo ta števila še ne vem)
@@ -12,4 +13,19 @@ nato narediti zaporedje b1, b2, ... za katerega držijo dovolj lepe stvari
 
 od nekje dobit cifro e
 
+<<<<<<< HEAD
 TODO kranšanje dyadic?
+=======
+POPRAVI diadic
+
+
+### TODO
+  - fix dyadic operations implementations (Matija) 
+  - implement psi function as a recursive function (Luka)
+  - implement sequence of m_i so they are bounded by some constant? 
+  - implement series to represent holomorphic functions in rust 
+  - indefinite integral of a holomorphic function 
+  - struct for holomorphic functions (derivative, integral, power series representation) (Luka)
+  - epsilon-covering grid (Luka)
+  - 
+>>>>>>> e52291895796b9e04156e8be7c3c3d3faaf5df9b

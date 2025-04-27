@@ -1,5 +1,6 @@
 use crate::dyadic::{Dyadic, ComplexDyadic, Interval, psi} ;
 use std::collections::LinkedList;
+
 fn vec_to_linked_list(vec: Vec<u8>) -> LinkedList<u8> {
     let mut list = LinkedList::new();
 
