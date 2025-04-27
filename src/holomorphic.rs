@@ -126,6 +126,10 @@ impl ComplexFunction {
             upper_limit_of_summation,
         }
     }
+
+    pub fn eval(&self, z: ComplexDyadic) -> ComplexDyadic {
+        (self.function)(z)
+    }
 }
 
 impl Add for ComplexFunction { 
