@@ -1,12 +1,11 @@
 // TODO: 
-// implement holomorphic funtions as vectors, have addition, subtraction, mult (not sure if needed)
-// not yet sure if we should implement them just for dyadic complex numbers
-// implement derivate, integral (choose +C so that it maps 0 to 0)
-// implement methods eval, absolute value
+// - implement holomorphic mult (not sure if needed)
+// - not yet sure if we should implement them just for dyadic complex numbers. This may need to be revised later on. Functions now work only on ComplexDyadic
+// - implement derivate, integral (choose +C so that it maps 0 to 0) -> This is the most important aspect of this struct, as it will be used later on
+// - do some basic testing to see function return expected values
 
 // Call the Dyadic type from dyadic.rs: 
 use landau::dyadic::{ComplexDyadic, Dyadic} ;
-// Call operations 
 use std::ops::{Add, Mul, Sub, Div}; //division not yet implemented
 use std::sync::Arc;
 

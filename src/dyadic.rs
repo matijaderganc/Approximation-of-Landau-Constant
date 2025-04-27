@@ -133,6 +133,12 @@ impl ComplexDyadic {
     pub fn zero() -> ComplexDyadic {
         ComplexDyadic::new(Dyadic::zero(), Dyadic::zero())
     }
+
+    pub fn absolute_value(self) -> f64 {
+        let re = self.re.powi(2);
+        let im = self.im.powi(2);
+        return (re.to_f64() + im.to_f64()).powf(0.5)
+    }
 }
 
 impl Add for ComplexDyadic {
