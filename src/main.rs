@@ -1,5 +1,5 @@
 use landau::dyadic::{Dyadic, ComplexDyadic, Interval, psi} ;
-use landau::psi::{psi_infinity} ;
+use landau::psi::{mu_first, mu_second, psi_infinity} ;
 use std::collections::LinkedList;
 fn main() {
     let x = Dyadic::new(3, -1) ;
@@ -27,6 +27,9 @@ fn main() {
     for a in holo{
         println!("{}, {}", a, a.abs())
     }
+    println!("{}", mu_first(&2.0, &x)) ;
+    println!("{}", mu_second(&2.0, &x))
+
 }
 
 
