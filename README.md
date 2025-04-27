@@ -13,15 +13,16 @@ nato narediti zaporedje b1, b2, ... za katerega držijo dovolj lepe stvari
 
 od nekje dobit cifro e
 
-POPRAVI diadic
-
-
 ### TODO
-  - fix dyadic operations implementations (Matija) 
-  - implement psi function as a recursive function (Luka)
-  - implement sequence of m_i so they are bounded by some constant? 
-  - implement series to represent holomorphic functions in rust 
-  - indefinite integral of a holomorphic function 
-  - struct for holomorphic functions (derivative, integral, power series representation) (Luka)
-  - epsilon-covering grid (Luka)
-  - 
+
+- [x] fix dyadic operations implementations (Matija) 
+- [ ] implement psi function as a recursive function (Luka)
+- [x] implement sequence of m_i so they are bounded by some constant? (Luka)
+- [x] implement series to represent holomorphic functions in rust (Luka)
+- [ ] indefinite integral of a holomorphic function (Luka)
+- [ ] struct for holomorphic functions (derivative, integral, power series representation) (Luka)
+- [ ] epsilon-covering grid (Luka)
+- [ ] represent psi function with complex functions
+- [ ] Get value of constant e 
+
+  
