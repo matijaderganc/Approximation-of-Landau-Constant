@@ -169,6 +169,8 @@ struct Word {
     // Luka : Words could be lists of vectors (Luka probably meant or)
 }
 
+
+// Implement display methods for defined types
 impl fmt::Display for Dyadic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:.15}", self.to_f64())

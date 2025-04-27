@@ -1,6 +1,8 @@
 use landau::dyadic::{Dyadic, ComplexDyadic, Interval, psi} ;
 use landau::psi::{psi_infinity} ;
 use std::collections::LinkedList;
+
+mod holomorphic;
 fn main() {
     let x = Dyadic::new(3, -1) ;
     // let y = Dyadic::new(5, -2);

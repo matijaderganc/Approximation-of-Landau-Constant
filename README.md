@@ -13,9 +13,6 @@ nato narediti zaporedje b1, b2, ... za katerega držijo dovolj lepe stvari
 
 od nekje dobit cifro e
 
-<<<<<<< HEAD
-TODO kranšanje dyadic?
-=======
 POPRAVI diadic
 
 
@@ -28,4 +25,3 @@ POPRAVI diadic
   - struct for holomorphic functions (derivative, integral, power series representation) (Luka)
   - epsilon-covering grid (Luka)
   - 
->>>>>>> e52291895796b9e04156e8be7c3c3d3faaf5df9b
