@@ -25,7 +25,7 @@ fn main() {
     let word = vec![2, 3, 1, 4, 1] ;
     let holo = psi_infinity(&m_seq, &t_seq, &word) ;
     for a in holo{
-        println!("{}", a)
+        println!("{}, {}", a, a.abs())
     }
 }
 

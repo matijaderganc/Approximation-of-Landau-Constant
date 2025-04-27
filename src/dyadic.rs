@@ -2,6 +2,7 @@ use std::collections::LinkedList;
 //use num_complex::Complex;
 use std::fmt::{self, write, UpperExp};
 
+// use std::intrinsics::sqrtf64;
 use std::io::Empty;
 use std::ops::{Add, Mul, Sub, Div}; //division not yet implemented
 use std::cmp::Ordering;
@@ -86,6 +87,11 @@ pub struct ComplexDyadic {
 impl ComplexDyadic {
     pub fn new(re : Dyadic, im : Dyadic) -> ComplexDyadic {
         ComplexDyadic{re : re, im : im}
+    }
+    pub fn abs(&self) -> f64 {
+        let real = self.re.to_f64() ;
+        let im = self.im.to_f64() ;
+        return (real * real + im * im).sqrt()
     }
 }
 
