@@ -9,6 +9,14 @@ use landau::dyadic::{ComplexDyadic, Dyadic} ;
 use std::ops::{Add, Mul, Sub, Div}; //division not yet implemented
 use std::sync::Arc;
 
+// Function to map vector to function which returns n-th element. 
+pub fn vec_to_sequence(vec: Vec<Dyadic>) -> impl Fn(u32) -> Dyadic {
+    move |n: u32| {
+        vec.get(n as usize)          // safe, no panic
+            .cloned()                // use `copied()` if Dyadic: Copy
+            .unwrap_or_else(Dyadic::zero)
+    }
+}
 // Define the bounding sequences, used to limit the set of all sequences. By definition, the series (m_i)p^i converges for all p from [0, 1).
 // It may be necessary to expand this implementation, depending on needs. 
 #[derive(Clone)]
