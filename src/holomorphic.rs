@@ -5,7 +5,7 @@
 // - do some basic testing to see function return expected values
 
 // Call the Dyadic type from dyadic.rs: 
-use landau::dyadic::{ComplexDyadic, Dyadic} ;
+use crate::dyadic::{ComplexDyadic, Dyadic} ;
 use std::ops::{Add, Mul, Sub, Div}; //division not yet implemented
 use std::sync::Arc;
 
@@ -94,7 +94,7 @@ impl ExpansionCoefficients {
 
 // A given holomorphic function consists of a bounding sequence (type BoundingSequence) and a bounded sequence, which represents the coefficients in its expansion (type ExpansionCoefficients)
 // Functions are (for now) defined only for ComplexDyadic numbers, not arbitrary complex numbers. This could need to be changed later on. 
-struct ComplexFunction {
+pub struct ComplexFunction {
     bounding_sequence: BoundingSequence,
     expansion_coefficients: ExpansionCoefficients,
     function: Box<dyn Fn(ComplexDyadic) -> ComplexDyadic>,
