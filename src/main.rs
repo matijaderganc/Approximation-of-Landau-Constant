@@ -11,12 +11,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x = Dyadic::new(3, -1) ;
     let m_seq = vec![x.clone(), x.clone(), x.clone()] ;
     let t_seq = vec![0, 1, 0, 1, 2, 1, 4, 1, 2, 4, 4, 3, 1, 4, 5] ;
-    let word = vec![1, 1, 4, 1, 2, 4, 3,1 ,2 ,3, 1, 2, 3, 1, 3, 2] ;
+    let word = vec![1, 3, 2, 1, 2, 4, 3,1 ,2 ,3, 1, 2, 3, 1, 3, 2] ;
     let holo = psi_infinity(&m_seq, &t_seq, &word) ;
     println!("{:?}", holo) ;
     let f = Holomorphic::new(holo) ;
 
-    let points1 = unit_disk_n(-5) ;
+    let points1 = unit_disk_n(-6) ;
     let mut points2 = Vec::new() ;
     for x in &points1 {
         points2.push(f.eval(*x))
