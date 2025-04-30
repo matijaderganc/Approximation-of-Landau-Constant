@@ -27,6 +27,26 @@ impl Dyadic {
     pub fn zero() -> Dyadic {
       Dyadic {numerator : 0, exponent : 0} 
     }
+
+    pub fn powi(self, power: i32) -> Self {
+        if power == 0 {
+            return Dyadic::new(1, 0);
+        }
+
+        let new_numerator = if power > 0 {
+            self.numerator.pow(power as u32)
+        } else {
+            // Negative power: numerator will be in denominator
+            1 // simplified: we will adjust exponent instead
+        };
+
+        let new_exponent = self.exponent * power - if power < 0 { (self.numerator.abs().ilog2() as i32) * power.abs() } else { 0 };
+
+        Dyadic {
+            numerator: new_numerator,
+            exponent: new_exponent,
+        }
+    }
 }
 
 impl Add for Dyadic {  
@@ -113,6 +133,12 @@ impl ComplexDyadic {
     pub fn zero() -> ComplexDyadic {
         ComplexDyadic::new(Dyadic::zero(), Dyadic::zero())
     }
+
+    pub fn absolute_value(self) -> f64 {
+        let re = self.re.powi(2);
+        let im = self.im.powi(2);
+        return (re.to_f64() + im.to_f64()).powf(0.5)
+    }
 }
 
 impl Add for ComplexDyadic {
@@ -189,6 +215,8 @@ struct Word {
     // Luka : Words could be lists of vectors (Luka probably meant or)
 }
 
+
+// Implement display methods for defined types
 impl fmt::Display for Dyadic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:.15}", self.to_f64())
