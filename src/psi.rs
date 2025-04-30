@@ -41,4 +41,14 @@ pub fn psi_infinity(m_seq: &Vec<Dyadic>, t_seq : &Vec<u32>, word : &Vec<u8>) -> 
     return out
 }
 
+pub fn mu_first(c : &f64, r : &Dyadic) -> f64 {
+    let e = std::f64::consts::E ;
+    let a = (2.0_f64).sqrt() * (c * e * (1.0/2.0) * (1.0/(1.0 - r.to_f64()) + (1.0/((1.0-r.to_f64()).powf(2.0))) ) + (2.0 - c * e) ) ;
+    return a
+}
 
+pub fn mu_second(c : &f64, r :&Dyadic) -> f64 {
+    let e = std::f64::consts::E ;
+    let a = (2.0_f64).sqrt() * (((c * e)/((1.0-r.to_f64()).powf(3.0))) + (c * e)/ (2.0 * (1.0-r.to_f64()).powf(2.0)) + 2.0) ;
+    return a
+}

@@ -8,7 +8,7 @@ use std::ops::{Add, Mul, Sub, Div}; //division not yet implemented
 use std::cmp::Ordering;
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 
 // Define dyadic type
 pub struct Dyadic {
@@ -78,7 +78,7 @@ impl PartialOrd for Dyadic {
 }
 
 // Define type ComplexDyadic
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ComplexDyadic {
     pub re : Dyadic ,
     pub im : Dyadic ,
@@ -92,6 +92,26 @@ impl ComplexDyadic {
         let real = self.re.to_f64() ;
         let im = self.im.to_f64() ;
         return (real * real + im * im).sqrt()
+    }
+
+    pub fn powi(self, mut power: i32) -> Self {
+        if power == 0 {
+            return ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0));
+        }
+
+        let mut result = self;
+        for _ in 1..power {
+            result = result * self;
+        }
+        result
+    }
+
+    pub fn one() -> ComplexDyadic {
+        ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0))
+    }
+
+    pub fn zero() -> ComplexDyadic {
+        ComplexDyadic::new(Dyadic::zero(), Dyadic::zero())
     }
 }
 
