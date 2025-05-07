@@ -19,10 +19,10 @@ pub fn vec_to_sequence(vec: &Vec<Dyadic>) -> impl Fn(u32) -> Dyadic + '_ {
     }
 }
 
-pub fn comp_vec_to_sequence(vec: &Vec<ComplexDyadic>) -> impl Fn(u32) -> ComplexDyadic + '_ {
+pub fn comp_vec_to_sequence(vec: Vec<ComplexDyadic>) -> impl Fn(u32) -> ComplexDyadic {
     move |n: u32| {
-        vec.get(n as usize)
-            .cloned()
+        vec.get(n as usize) // safe, no panic
+            .cloned() // use `copied()` if Dyadic: Copy
             .unwrap_or_else(ComplexDyadic::zero)
     }
 }
@@ -48,12 +48,12 @@ impl BoundingSequence {
         BoundingSequence { vector: vector }
     }
 }
+
 // Implement the sequences, used to identify complex holomorphic functions.
 // By definition of any given sequence, the real an imaginary part of a_i are both bounded by m_i for a sequence m_n of the type BoundingSequence.
-#[derive(Clone, Debug)]
-// a_1, the first element should always be zero here.
+#[derive(Clone)]
 pub struct ExpansionCoefficients {
-    vector: Vec<ComplexDyadic>,
+    n_th: Arc<dyn Fn(u32) -> ComplexDyadic>,
 }
 
 impl Add for ExpansionCoefficients {

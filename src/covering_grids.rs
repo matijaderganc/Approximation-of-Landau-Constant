@@ -107,3 +107,4 @@ pub fn plot_covering_grid(grid: &HashSet<ComplexDyadic>, filename: &str) -> Resu
     println!("Grid plotted to {}", filename);
     Ok(())
 }
+
