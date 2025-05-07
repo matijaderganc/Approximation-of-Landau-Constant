@@ -17,10 +17,18 @@ pub fn vec_to_sequence(vec: Vec<Dyadic>) -> impl Fn(u32) -> Dyadic {
             .unwrap_or_else(Dyadic::zero)
     }
 }
+
+pub fn comp_vec_to_sequence(vec: Vec<ComplexDyadic>) -> impl Fn(u32) -> ComplexDyadic {
+    move |n: u32| {
+        vec.get(n as usize)          // safe, no panic
+            .cloned()                // use `copied()` if Dyadic: Copy
+            .unwrap_or_else(ComplexDyadic::zero)
+    }
+}
 // Define the bounding sequences, used to limit the set of all sequences. By definition, the series (m_i)p^i converges for all p from [0, 1).
 // It may be necessary to expand this implementation, depending on needs. 
 #[derive(Clone)]
-struct BoundingSequence {
+pub struct BoundingSequence {
     n_th: Arc<dyn Fn(u32) -> Dyadic>,
 }
 
@@ -54,7 +62,7 @@ impl BoundingSequence {
 // Implement the sequences, used to identify complex holomorphic functions. 
 // By definition of any given sequence, the real an imaginary part of a_i are both bounded by m_i for a sequence m_n of the type BoundingSequence. 
 #[derive(Clone)]
-struct ExpansionCoefficients {
+pub struct ExpansionCoefficients {
     n_th : Arc<dyn Fn(u32) -> ComplexDyadic>,
 }
 
