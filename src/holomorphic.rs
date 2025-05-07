@@ -153,6 +153,22 @@ impl ComplexFunction {
             ExpansionCoefficients::new(derivative_coefficients),
         )
     }
+
+    pub fn antiderivative(&self) -> ComplexFunction {
+        let sequence = &self.expansion_coefficients.vector;
+        let mut antiderivative_sequence = Vec::with_capacity(sequence.len() + 1);
+        antiderivative_sequence.push(ComplexDyadic::one());
+        for i in 0..sequence.len() {
+            antiderivative_sequence.push(
+                sequence[i] / ComplexDyadic::new(Dyadic::new(i as i128 + 2, 0), Dyadic::zero()),
+            )
+        }
+        ComplexFunction {
+            bounding_sequence: self.bounding_sequence.clone(),
+            expansion_coefficients: ExpansionCoefficients::new(antiderivative_sequence),
+            upper_limit_of_summation: self.upper_limit_of_summation + 1,
+        }
+    }
 }
 
 impl Add for ComplexFunction {
