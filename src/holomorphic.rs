@@ -5,7 +5,7 @@
 // - do some basic testing to see function return expected values
 
 // Call the Dyadic type from dyadic.rs: 
-use crate::dyadic::{ComplexDyadic, Dyadic} ;
+use crate::dyadic::{ComplexDyadic, Dyadic, add_vec, add_complex_vec, sub_complex_vec} ;
 use std::ops::{Add, Mul, Sub, Div}; //division not yet implemented
 use std::sync::Arc;
 
@@ -17,11 +17,20 @@ pub fn vec_to_sequence(vec: Vec<Dyadic>) -> impl Fn(u32) -> Dyadic {
             .unwrap_or_else(Dyadic::zero)
     }
 }
+
+pub fn comp_vec_to_sequence(vec: Vec<ComplexDyadic>) -> impl Fn(u32) -> ComplexDyadic {
+    move |n: u32| {
+        vec.get(n as usize)          // safe, no panic
+            .cloned()                // use copied() if Dyadic: Copy
+            .unwrap_or_else(ComplexDyadic::zero)
+    }
+}
 // Define the bounding sequences, used to limit the set of all sequences. By definition, the series (m_i)p^i converges for all p from [0, 1).
 // It may be necessary to expand this implementation, depending on needs. 
 #[derive(Clone)]
-struct BoundingSequence {
+pub struct BoundingSequence {
     n_th: Arc<dyn Fn(u32) -> Dyadic>,
+    vector : Vec<Dyadic>,
 }
 
 impl Add for BoundingSequence {
@@ -36,26 +45,31 @@ impl Add for BoundingSequence {
                 let a = left(n);
                 let b = right(n);
                 if a > b { a } else { b }
-            }),
+            }
+        ),
+        vector: add_vec(&self.vector, &other.vector),
         }
     }
 }
 
 
 impl BoundingSequence {
-    pub fn new<F>(f: F) -> Self
+    pub fn new<F>(f: F, vector : Vec<Dyadic>) -> Self
     where
         F: Fn(u32) -> Dyadic + Send + Sync + 'static,
     {
-        Self { n_th: Arc::new(f) }
+        Self {
+            n_th: Arc::new(f),
+            vector: vector, // Initialize the vector as an empty vector
+        }
     }
 }
-
 // Implement the sequences, used to identify complex holomorphic functions. 
 // By definition of any given sequence, the real an imaginary part of a_i are both bounded by m_i for a sequence m_n of the type BoundingSequence. 
 #[derive(Clone)]
-struct ExpansionCoefficients {
+pub struct ExpansionCoefficients {
     n_th : Arc<dyn Fn(u32) -> ComplexDyadic>,
+    vector : Vec<ComplexDyadic>,
 }
 
 impl Add for ExpansionCoefficients {
@@ -67,6 +81,7 @@ impl Add for ExpansionCoefficients {
 
         Self {
             n_th: Arc::new(move |n| left(n) + right(n)),
+            vector: add_complex_vec(&self.vector, &other.vector)
         }
     }
 }
@@ -78,17 +93,21 @@ impl Sub for ExpansionCoefficients {
         let left = self.n_th;
         let right = other.n_th;
         Self {
-            n_th: Arc::new(move |n| left(n) - right(n))
+            n_th: Arc::new(move |n| left(n) - right(n)),
+            vector: sub_complex_vec(&self.vector, &other.vector),
         }
     }
 }
 
 impl ExpansionCoefficients {
-    pub fn new<F>(f: F) -> Self
+    pub fn new<F>(f: F, vector : Vec<ComplexDyadic>) -> Self
     where
         F: Fn(u32) -> ComplexDyadic + Send + Sync + 'static,
     {
-        Self { n_th: Arc::new(f) }
+        Self { 
+            n_th: Arc::new(f), 
+            vector: vector, 
+        }
     }
 }
 
@@ -108,31 +127,47 @@ impl ComplexFunction {
         bounding_sequence: BoundingSequence,
         expansion_coefficients: ExpansionCoefficients,
     ) -> Self {
-        Self::new_with_upper_limit(bounding_sequence, expansion_coefficients, 100)
-    }
-
-    pub fn new_with_upper_limit(
-        bounding_sequence: BoundingSequence,
-        expansion_coefficients: ExpansionCoefficients,
-        upper_limit_of_summation: u32,
-    ) -> Self {
         let nth_fn = expansion_coefficients.n_th.clone();
 
-        let func = move |z: ComplexDyadic| {
-            let mut sum = ComplexDyadic::zero();
-            for i in 1..=upper_limit_of_summation {
-                sum = sum + nth_fn(i) * z.powi(i as i32);
-            }
-            ComplexDyadic::one() + sum
-        };
+        let len = expansion_coefficients.vector.len();
+        let len = len as u32;
 
-        Self {
-            bounding_sequence,
-            expansion_coefficients,          // still intact – not moved
+        let func = move |z: ComplexDyadic| {
+                    let mut sum = ComplexDyadic::zero();
+                    for i in 1..=len {
+                        sum = sum + nth_fn(i) * z.powi(i as i32);
+                    }
+                    ComplexDyadic::one() + sum
+                };
+        Self{
+            bounding_sequence: bounding_sequence, 
+            expansion_coefficients: expansion_coefficients,
             function: Box::new(func),
-            upper_limit_of_summation,
+            upper_limit_of_summation: len
         }
     }
+    // pub fn new_with_upper_limit(
+    //     bounding_sequence: BoundingSequence,
+    //     expansion_coefficients: ExpansionCoefficients,
+    //     upper_limit_of_summation: u32,
+    // ) -> Self {
+    //     let nth_fn = expansion_coefficients.n_th.clone();
+
+    //     let func = move |z: ComplexDyadic| {
+    //         let mut sum = ComplexDyadic::zero();
+    //         for i in 1..=upper_limit_of_summation {
+    //             sum = sum + nth_fn(i) * z.powi(i as i32);
+    //         }
+    //         ComplexDyadic::one() + sum
+    //     };
+
+    //     Self {
+    //         bounding_sequence,
+    //         expansion_coefficients,          // still intact – not moved
+    //         function: Box::new(func),
+    //         upper_limit_of_summation,
+    //     }
+    // }
 
     pub fn eval(&self, z: ComplexDyadic) -> ComplexDyadic {
         (self.function)(z)
@@ -142,10 +177,9 @@ impl ComplexFunction {
 impl Add for ComplexFunction { 
     type Output = ComplexFunction;
     fn add(self, other : ComplexFunction) -> ComplexFunction {
-        ComplexFunction::new_with_upper_limit(
+        ComplexFunction::new(
             self.bounding_sequence + other.bounding_sequence,
-            self.expansion_coefficients + other.expansion_coefficients,
-            std::cmp::max(self.upper_limit_of_summation, other.upper_limit_of_summation)
+            self.expansion_coefficients + other.expansion_coefficients
             )    
     }
 }
@@ -154,10 +188,9 @@ impl Sub for ComplexFunction {
     type Output = Self;
 
     fn sub(self, other : Self) -> Self {
-        Self::new_with_upper_limit(
+        Self::new(
             self.bounding_sequence + other.bounding_sequence, 
-            self.expansion_coefficients - other.expansion_coefficients, 
-            std::cmp::max(self.upper_limit_of_summation, other.upper_limit_of_summation),
+            self.expansion_coefficients - other.expansion_coefficients
         )
     }
 }

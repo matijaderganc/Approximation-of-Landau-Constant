@@ -1,7 +1,7 @@
 use landau::dyadic::{Dyadic, ComplexDyadic, Interval, psi} ;
 use landau::psi::{mu_first, mu_second, psi_infinity} ;
 use landau::covering_grids::{self, extreme_points, unit_disk_n, create_covering_grid, plot_covering_grid} ;
-use landau::holomorphic::{ComplexFunction, vec_to_sequence} ;
+use landau::holomorphic::{ComplexFunction, vec_to_sequence, BoundingSequence, ExpansionCoefficients, comp_vec_to_sequence} ;
 
 use std::collections::LinkedList;
 use plotters::prelude::*;
@@ -14,16 +14,13 @@ fn main() // Result<(), Box<dyn std::error::Error>>
     let t_seq = vec![0, 1, 0, 1, 2, 1, 4, 1, 2, 4, 4, 3, 1, 4, 5] ;
     let word = vec![1, 3, 2, 1, 2, 4, 3,1 ,2 ,3, 1, 2, 3, 1, 3, 2] ;
     let holo = psi_infinity(&m_seq, &t_seq, &word) ;
-    println!("{:?}", holo) ;
-    // let f = Holomorphic::new(holo) ;
+    let points1 = unit_disk_n(-1) ;
 
-    let points1 = unit_disk_n(-6) ;
-
+    let f = ComplexFunction::new(BoundingSequence::new(vec_to_sequence(m_seq)), ExpansionCoefficients::new(comp_vec_to_sequence(holo))) ;
+    println!("Complex function compiled");
     //TODO use holomprphic.rs to represent the f above, then run the following code
     // let mut points2 = Vec::new() ;
-    // for x in &points1 {
-    //     points2.push(f.eval(*x))
-    // }
+    println!("{}", f.eval(ComplexDyadic::new(x.clone(), x.clone())));
 
     // let root = BitMapBackend::new("dyadic_disk.png", (600, 600)).into_drawing_area();
     // root.fill(&WHITE)?;

@@ -78,6 +78,7 @@ impl Sub for Dyadic {
 impl Mul for Dyadic {
     type Output = Dyadic;
     fn mul(self, other: Dyadic) -> Dyadic {
+        // println!("{} {}", self.numerator, other.numerator);
         Dyadic::new(self.numerator * other.numerator, self.exponent + other.exponent)
     }
 }
@@ -95,6 +96,20 @@ impl PartialOrd for Dyadic {
     fn partial_cmp(&self, other: &Dyadic) -> Option<Ordering> {
         Some(self.to_f64().partial_cmp(&other.to_f64()).unwrap())
     }
+}
+
+pub fn add_vec(a: &Vec<Dyadic>, b: &Vec<Dyadic>) -> Vec<Dyadic> {
+    let len = a.len().max(b.len());  // Use the length of the longer vector
+        let mut result = Vec::with_capacity(len);
+
+        for i in 0..len {
+            // If index i is within bounds of self, use the value; otherwise, use Dyadic(0)
+            let val_self = if i < a.len() { a[i] } else { Dyadic::zero() };
+            let val_other = if i < b.len() { b[i] } else { Dyadic::zero() };
+            result.push(val_self + val_other);
+        }
+
+        result
 }
 
 // Define type ComplexDyadic
@@ -170,6 +185,33 @@ impl Mul for ComplexDyadic {
 //         }
 //     }
 // }
+
+
+pub fn add_complex_vec(a : &Vec<ComplexDyadic>, b : &Vec<ComplexDyadic>) -> Vec<ComplexDyadic> {
+    let len = a.len().max(b.len());  // Use the length of the longer vector
+        let mut result = Vec::with_capacity(len);
+
+        for i in 0..len {
+            let val_self = if i < a.len() { a[i] } else { ComplexDyadic::zero() };
+            let val_other = if i < b.len() { b[i] } else { ComplexDyadic::zero() };
+            result.push(val_self + val_other);
+        }
+
+        result
+}
+
+pub fn sub_complex_vec(a : &Vec<ComplexDyadic>, b : &Vec<ComplexDyadic>) -> Vec<ComplexDyadic> {
+    let len = a.len().max(b.len());  // Use the length of the longer vector
+        let mut result = Vec::with_capacity(len);
+
+        for i in 0..len {
+            let val_self = if i < a.len() { a[i] } else { ComplexDyadic::zero() };
+            let val_other = if i < b.len() { b[i] } else { ComplexDyadic::zero() };
+            result.push(val_self - val_other);
+        }
+
+        result
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
