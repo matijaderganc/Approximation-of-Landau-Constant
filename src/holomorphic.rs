@@ -10,18 +10,18 @@ use std::ops::{Add, Mul, Sub, Div}; //division not yet implemented
 use std::sync::Arc;
 
 // Function to map vector to function which returns n-th element. 
-pub fn vec_to_sequence(vec: Vec<Dyadic>) -> impl Fn(u32) -> Dyadic {
+pub fn vec_to_sequence(vec: &Vec<Dyadic>) -> impl Fn(u32) -> Dyadic + '_ {
     move |n: u32| {
         vec.get(n as usize)          // safe, no panic
-            .cloned()                // use `copied()` if Dyadic: Copy
+            .cloned()                 // use `copied()` if Dyadic implements Copy
             .unwrap_or_else(Dyadic::zero)
     }
 }
 
-pub fn comp_vec_to_sequence(vec: Vec<ComplexDyadic>) -> impl Fn(u32) -> ComplexDyadic {
+pub fn comp_vec_to_sequence(vec: &Vec<ComplexDyadic>) -> impl Fn(u32) -> ComplexDyadic + '_ {
     move |n: u32| {
-        vec.get(n as usize)          // safe, no panic
-            .cloned()                // use copied() if Dyadic: Copy
+        vec.get(n as usize)          
+            .cloned()                 
             .unwrap_or_else(ComplexDyadic::zero)
     }
 }
@@ -171,6 +171,25 @@ impl ComplexFunction {
 
     pub fn eval(&self, z: ComplexDyadic) -> ComplexDyadic {
         (self.function)(z)
+    }
+
+    // This could need to be checked if it works properly. 
+    pub fn derivative(&self) -> ComplexFunction {
+        let coefficients = &self.expansion_coefficients.vector;
+        let length = coefficients.len();
+        let mut derivative_coefficients: Vec<ComplexDyadic> = Vec::with_capacity(length - 1);
+        
+        // Calculate the derivative coefficients
+        for i in 1..length {
+            derivative_coefficients.push(coefficients[i] * ComplexDyadic::new(Dyadic::new(i as i128, 0), Dyadic::zero()));
+        }
+    
+        let n_th = comp_vec_to_sequence(&derivative_coefficients);
+    
+        ComplexFunction::new(
+            self.bounding_sequence.clone(), 
+            ExpansionCoefficients::new(n_th, derivative_coefficients)
+        )
     }
 }
 
