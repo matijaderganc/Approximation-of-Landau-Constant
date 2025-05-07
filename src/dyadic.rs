@@ -107,14 +107,19 @@ impl Mul for Dyadic {
     }
 }
 
-// impl Div for Dyadic {
-//     type Output = Dyadic
-//     fn div(self, other : Dyadic) -> Dyadic {
-//         if other != Dyadic::zero() {
-
-//         }
-//     }
-// }
+impl Div for Dyadic {
+    type Output = Dyadic;
+    fn div(self, other: Dyadic) -> Dyadic {
+        if other != Dyadic::zero() {
+            Dyadic::new(
+                self.numerator / other.numerator,
+                self.exponent - other.exponent,
+            )
+        } else {
+            panic!("Division with zero Dyadic!")
+        }
+    }
+}
 
 impl PartialOrd for Dyadic {
     fn partial_cmp(&self, other: &Dyadic) -> Option<Ordering> {
@@ -204,14 +209,21 @@ impl Mul for ComplexDyadic {
     }
 }
 
-// impl Div for ComplexDyadic {
-//     type Output = ComplexDyadic
-//     fn div(self, other : ComplexDyadic) -> ComplexDyadic {
-//         if other.re != Dyadic::zero() && other.im != Dyadic::zero() {
-//             ComplexDyadic::new((self.re * other.re + self.im * other.im) / (other.re * other.re + other.im * other.im), (self.im * other.re - self.re * other.im) / (other.re * other.re + other.im * other.im)) // Check if operations work as needed
-//         }
-//     }
-// }
+impl Div for ComplexDyadic {
+    type Output = ComplexDyadic;
+    fn div(self, other: ComplexDyadic) -> ComplexDyadic {
+        if other != ComplexDyadic::zero() {
+            ComplexDyadic::new(
+                (self.re * other.re + self.im * other.im)
+                    / (other.re * other.re + other.im * other.im),
+                (self.im * other.re - self.re * other.im)
+                    / (other.re * other.re + other.im * other.im),
+            )
+        } else {
+            panic!("Division with ComplexDyadic zero!")
+        }
+    }
+}
 
 pub fn add_complex_vec(a: &Vec<ComplexDyadic>, b: &Vec<ComplexDyadic>) -> Vec<ComplexDyadic> {
     let len = a.len().max(b.len()); // Use the length of the longer vector
