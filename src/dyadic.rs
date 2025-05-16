@@ -5,7 +5,9 @@ use std::fmt::{self, write, UpperExp};
 // use std::intrinsics::sqrtf64;
 use std::cmp::Ordering;
 use std::io::Empty;
-use std::ops::{Add, Div, Mul, Sub}; //division not yet implemented
+use std::ops::{Add, Div, Mul, Sub};
+
+use plotters::element::ComposedElement; //division not yet implemented
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 
@@ -158,13 +160,15 @@ impl ComplexDyadic {
         return (real * real + im * im).sqrt();
     }
 
-    pub fn powi(self, mut power: i32) -> Self {
+    // Add fast powering
+    pub fn powi(self, power: i32) -> Self {
         if power == 0 {
-            return ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0));
+            return ComplexDyadic::one();
         }
 
-        let mut result = self;
-        for _ in 1..power {
+        let mut result = ComplexDyadic::one();
+        for _ in 0..power {
+            println!("{result}");
             result = result * self;
         }
         result

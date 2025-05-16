@@ -9,6 +9,7 @@ So far, we have implemented Dyadic numbers for efficient computation, a psi func
 - [x] implement psi function as a recursive function (Luka)
 - [x] implement sequence of m_i so they are bounded by some constant? (Luka)
 - [x] implement series to represent holomorphic functions in rust (Luka)
+- [ ] Add 'fast power' method for ComplexDyadic (Luka)
 - [ ] indefinite integral of a holomorphic function (Luka)
 - [ ] struct for holomorphic functions (derivative, integral, power series representation) (Luka)
 - [x] epsilon-covering grid (Matija)

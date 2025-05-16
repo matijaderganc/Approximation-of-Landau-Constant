@@ -50,7 +50,8 @@ impl BoundingSequence {
 }
 // Implement the sequences, used to identify complex holomorphic functions.
 // By definition of any given sequence, the real an imaginary part of a_i are both bounded by m_i for a sequence m_n of the type BoundingSequence.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
+// a_1, the first element should always be zero here.
 pub struct ExpansionCoefficients {
     vector: Vec<ComplexDyadic>,
 }
@@ -85,7 +86,7 @@ impl ExpansionCoefficients {
 // Functions are (for now) defined only for ComplexDyadic numbers, not arbitrary complex numbers. This could need to be changed later on.
 pub struct ComplexFunction {
     bounding_sequence: BoundingSequence,
-    expansion_coefficients: ExpansionCoefficients,
+    pub expansion_coefficients: ExpansionCoefficients,
     // Upper limit defaults to 100, but a separate constructor if defined
     upper_limit_of_summation: u32,
 }
@@ -105,33 +106,13 @@ impl ComplexFunction {
             upper_limit_of_summation: len,
         }
     }
-    // pub fn new_with_upper_limit(
-    //     bounding_sequence: BoundingSequence,
-    //     expansion_coefficients: ExpansionCoefficients,
-    //     upper_limit_of_summation: u32,
-    // ) -> Self {
-    //     let nth_fn = expansion_coefficients.n_th.clone();
-
-    //     let func = move |z: ComplexDyadic| {
-    //         let mut sum = ComplexDyadic::zero();
-    //         for i in 1..=upper_limit_of_summation {
-    //             sum = sum + nth_fn(i) * z.powi(i as i32);
-    //         }
-    //         ComplexDyadic::one() + sum
-    //     };
-
-    //     Self {
-    //         bounding_sequence,
-    //         expansion_coefficients,          // still intact – not moved
-    //         function: Box::new(func),
-    //         upper_limit_of_summation,
-    //     }
-    // }
 
     pub fn eval(&self, z: ComplexDyadic) -> ComplexDyadic {
         let mut sum = ComplexDyadic::zero();
-        for i in 1..=self.upper_limit_of_summation {
-            sum = sum + self.expansion_coefficients.vector[i as usize] * z.powi(i as i32)
+        for i in 0..=self.expansion_coefficients.vector.len() - 1 {
+            println!("{}, {}", sum, i);
+            sum = sum + self.expansion_coefficients.vector[i as usize] * (z.powi((i + 1) as i32));
+            println!("{}", sum)
         }
         return sum + ComplexDyadic::one();
     }
@@ -143,6 +124,7 @@ impl ComplexFunction {
         let mut derivative_coefficients: Vec<ComplexDyadic> = Vec::with_capacity(length - 1);
 
         // Calculate the derivative coefficients
+
         for i in 1..length {
             derivative_coefficients.push(
                 coefficients[i] * ComplexDyadic::new(Dyadic::new(i as i128, 0), Dyadic::zero()),
@@ -154,6 +136,7 @@ impl ComplexFunction {
         )
     }
 
+    // This still needs to be fixed so it maps zero correctly
     pub fn antiderivative(&self) -> ComplexFunction {
         let sequence = &self.expansion_coefficients.vector;
         let mut antiderivative_sequence = Vec::with_capacity(sequence.len() + 1);
