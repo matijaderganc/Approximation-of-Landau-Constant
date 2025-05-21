@@ -1,6 +1,8 @@
 use crate::dyadic::{Dyadic, ComplexDyadic} ;
 use crate::covering_grids::{extreme_points};
 use plotters::prelude::*;
+use std::collections::HashSet;
+
 
 
 pub fn plot_set(points: &Vec<ComplexDyadic>, filename : &str) -> Result<(), Box<dyn std::error::Error>>{
@@ -28,5 +30,31 @@ pub fn plot_set(points: &Vec<ComplexDyadic>, filename : &str) -> Result<(), Box<
     )?;
 
     println!("Plot saved to '{}'", filename);
+    Ok(())
+}
+
+pub fn plot_covering_grid(grid: &HashSet<ComplexDyadic>, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let root = BitMapBackend::new(filename, (600, 600)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    let range = -5.1f64..5.1f64;
+
+    let mut chart = ChartBuilder::on(&root)
+        .caption("ε-Covering Grid", ("sans-serif", 30))
+        .margin(20)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(range.clone(), range.clone())?;
+
+    chart.configure_mesh().draw()?;
+
+    chart.draw_series(
+        grid.iter().map(|z| {
+            let (x, y) = (z.re.to_f64(), z.im.to_f64());
+            Circle::new((x, y), 1, RED.filled())
+        })
+    )?;
+
+    println!("Grid plotted to {}", filename);
     Ok(())
 }

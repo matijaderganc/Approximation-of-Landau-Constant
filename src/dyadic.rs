@@ -168,7 +168,7 @@ impl ComplexDyadic {
 
         let mut result = ComplexDyadic::one();
         for _ in 0..power {
-            println!("{result}");
+            // println!("{result}");
             result = result * self;
         }
         result

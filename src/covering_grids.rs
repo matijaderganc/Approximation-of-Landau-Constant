@@ -82,29 +82,59 @@ pub fn create_covering_grid(set : &Vec<ComplexDyadic>, epsilon : Dyadic, delta :
     grid
 }
 
-pub fn plot_covering_grid(grid: &HashSet<ComplexDyadic>, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let root = BitMapBackend::new(filename, (600, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
+pub fn grid_complement(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> HashSet<ComplexDyadic> {
+    let extremes = extreme_points(&grid.iter().copied().collect()).unwrap();
+    let min_real = extremes[0].re.to_f64();
+    let max_real = extremes[1].re.to_f64();
+    let min_imag = extremes[2].im.to_f64();
+    let max_imag = extremes[3].im.to_f64();
 
-    let range = -5.1f64..5.1f64;
+    let delta_f64 = delta.to_f64();
 
-    let mut chart = ChartBuilder::on(&root)
-        .caption("ε-Covering Grid", ("sans-serif", 30))
-        .margin(20)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(range.clone(), range.clone())?;
+    let r_start = (min_real / delta_f64).floor() as i64 - 1;
+    let r_end   = (max_real / delta_f64).ceil() as i64 + 1;
+    let i_start = (min_imag / delta_f64).floor() as i64 - 1;
+    let i_end   = (max_imag / delta_f64).ceil() as i64 + 1;
 
-    chart.configure_mesh().draw()?;
-
-    chart.draw_series(
-        grid.iter().map(|z| {
-            let (x, y) = (z.re.to_f64(), z.im.to_f64());
-            Circle::new((x, y), 1, RED.filled())
-        })
-    )?;
-
-    println!("Grid plotted to {}", filename);
-    Ok(())
+    let mut full_grid = HashSet::new();
+    for dr in r_start..=r_end {
+        for di in i_start..=i_end {
+            let point: ComplexDyadic = ComplexDyadic::new(Dyadic::new(dr as i128, 0) * delta, Dyadic::new(di as i128, 0) * delta) ;
+            full_grid.insert(point);
+        }
+    } ;
+    for g in grid {
+        full_grid.remove(g);
+    }
+    full_grid
 }
+
+pub fn grid_approx(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> Option<f64> {
+    let mut max : Option<f64> = Some(delta.to_f64()) ;
+    let comp = grid_complement(grid, delta) ;
+    for point1 in grid{
+        let mut min : Option<f64> = None ;
+        for point2 in &comp {
+            let dist = (*point1 - *point2).abs() ;
+            if let Some(current_min) = min {
+                if dist < current_min {
+                    min = Some(dist)
+                }
+            }
+            else {
+                min = Some(dist)
+            }
+        }
+        if let Some(current_max) = max {
+            if min.unwrap() > current_max {
+                max = Some(min.unwrap())
+            }
+        }
+        else {
+            max = Some(min.unwrap())
+        }
+    }
+    max
+}
+
 
