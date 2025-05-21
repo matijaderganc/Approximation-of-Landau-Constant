@@ -7,7 +7,7 @@ use landau::plot::{self, plot_covering_grid, plot_set};
 use landau::holomorphic::{
     comp_vec_to_sequence, vec_to_sequence, BoundingSequence, ComplexFunction, ExpansionCoefficients,
 };
-use landau::psi::{mu_first, mu_second, psi_infinity};
+use landau::psi::{generate_word, mu_first, mu_second, psi_infinity};
 use plotters::prelude::*;
 
 use std::collections::LinkedList;
@@ -40,6 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &grid_complement(&grid, Dyadic::new(1, -4)),
         "complement.png",
     )?;
+    println!("{:?}", generate_word(10));
     println!(
         "approximation is {}",
         grid_approx(&grid, Dyadic::new(1, -4)).unwrap()
