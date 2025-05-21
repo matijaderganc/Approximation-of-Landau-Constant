@@ -12,6 +12,7 @@ fn vec_to_linked_list(vec: Vec<u8>) -> LinkedList<u8> {
     list
 }
 
+// Generates a random word of a given length
 pub fn generate_word(length: i32) -> Vec<u8> {
     let mut rng = rand::thread_rng();
     let mut word = Vec::with_capacity(length as usize);
@@ -19,6 +20,27 @@ pub fn generate_word(length: i32) -> Vec<u8> {
         word.push(rng.gen_range(1..5))
     }
     return word;
+}
+
+// Generates all possible vectors of given length with values ranging from 1 to 4 inclusive.
+// Used to get all possible words
+pub fn generate_all_words(length: usize) -> Vec<Vec<u8>> {
+    if length == 0 {
+        return vec![vec![]]; // base case: one empty vector
+    }
+
+    let smaller_vectors = generate_all_words(length - 1);
+    let mut result = Vec::with_capacity(smaller_vectors.len() * 4);
+
+    for vec in smaller_vectors {
+        for val in 1..=4 {
+            let mut new_vec = vec.clone();
+            new_vec.push(val);
+            result.push(new_vec);
+        }
+    }
+
+    result
 }
 
 fn select_matching(n: u32, vec1: &Vec<u32>, vec2: &Vec<u8>) -> Vec<u8> {

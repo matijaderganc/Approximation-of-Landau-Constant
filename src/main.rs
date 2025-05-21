@@ -7,13 +7,14 @@ use landau::plot::{self, plot_covering_grid, plot_set};
 use landau::holomorphic::{
     comp_vec_to_sequence, vec_to_sequence, BoundingSequence, ComplexFunction, ExpansionCoefficients,
 };
-use landau::psi::{generate_word, mu_first, mu_second, psi_infinity};
+use landau::psi::{generate_all_words, generate_word, mu_first, mu_second, psi_infinity};
 use plotters::prelude::*;
 
 use std::collections::LinkedList;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let x = Dyadic::new(5, -1);
+    let x = Dyadic::new(12, -2);
+    println!("{}", x.reduce());
     let m_seq = vec![x.clone(), x.clone(), x.clone(), x.clone()];
     let t_seq = vec![0, 1, 0, 1, 2, 0, 1, 2, 2, 0, 1, 2, 3, 0, 1, 2, 3, 0];
     let word = vec![1, 1, 1, 3, 2, 1, 3, 1, 2, 3, 1, 2, 3, 1, 3, 2, 1, 2, 3, 2];
@@ -40,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &grid_complement(&grid, Dyadic::new(1, -4)),
         "complement.png",
     )?;
-    println!("{:?}", generate_word(10));
+    println!("{:?}", generate_all_words(10).len());
     println!(
         "approximation is {}",
         grid_approx(&grid, Dyadic::new(1, -4)).unwrap()
