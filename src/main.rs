@@ -11,14 +11,27 @@ use landau::plot::{self, plot_set, plot_covering_grid} ;
 use plotters::prelude::*;
 use std::collections::LinkedList;
 
+fn evaluate_function(f : &Vec<ComplexDyadic>, delta : Dyadic, disk : &Vec<ComplexDyadic>) -> Option<f64> {
+    let m_seq = vec![Dyadic::new(1, -1), Dyadic::new(1, -1)] ; // no role for now
+    let complex = ComplexFunction::new(
+        BoundingSequence::new(m_seq),
+        ExpansionCoefficients::new(f.clone()),
+    );
+    let mut image = Vec::new() ;
+    for x in disk {
+        image.push(complex.eval(*x))
+    }
+    let grid = create_covering_grid(&image, delta.clone()* Dyadic::new(4, 0), delta.clone()) ;
+    grid_approx(&grid, delta)
+} 
 fn main()-> Result<(), Box<dyn std::error::Error>>
-{
-    let x = Dyadic::new(5, -1) ;
-    let m_seq = vec![x.clone(), x.clone(), x.clone(), x.clone()] ;
+{   
+    let x = Dyadic::new(1, -1) ;
+    let m_seq = vec![x.clone(), x.clone()] ;
     let t_seq = vec![0, 1, 0, 1, 2, 0, 1, 2, 2, 0, 1, 2, 3, 0, 1, 2, 3, 0];
     let word = vec![1, 1, 1, 3, 2, 1, 3, 1, 2, 3, 1, 2, 3, 1, 3, 2, 1, 2, 3, 2];
     let holo = psi_infinity(&m_seq, &t_seq, &word);
-    for t in &holo {
+    for t in &holo{
         println!("{}", t)
     }
     println!("done") ;
@@ -28,7 +41,6 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
         BoundingSequence::new(m_seq),
         ExpansionCoefficients::new(holo),
     );
-    println!("{}", f.eval(ComplexDyadic::new(x.clone(), x.clone()))) ;
     let mut points2 = Vec::new() ;
     for x in &points1 {
         points2.push(f.eval(*x))
@@ -38,6 +50,11 @@ fn main()-> Result<(), Box<dyn std::error::Error>>
     plot_covering_grid(&grid, "covering_grid.png")?;
     plot_covering_grid(&grid_complement(&grid, Dyadic::new(1, -4)), "complement.png")?;
     println!("approximation is {}", grid_approx(&grid, Dyadic::new(1, -4)).unwrap()) ;
+    let m_seq1 = vec![x.clone(), x.clone()] ;
+
+    let holo1 = psi_infinity(&m_seq1, &t_seq, &word);
+
+    println!("new approx {}", evaluate_function(&holo1, Dyadic::new(1, -4), &points1).unwrap()) ;
     Ok(())
 }
 // add these to tests!!!

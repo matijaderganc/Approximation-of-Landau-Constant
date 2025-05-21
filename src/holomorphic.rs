@@ -53,7 +53,7 @@ impl BoundingSequence {
 #[derive(Clone, Debug)]
 // a_1, the first element should always be zero here.
 pub struct ExpansionCoefficients {
-    vector: Vec<ComplexDyadic>,
+    pub vector: Vec<ComplexDyadic>,
 }
 
 impl Add for ExpansionCoefficients {
@@ -140,10 +140,10 @@ impl ComplexFunction {
     pub fn antiderivative(&self) -> ComplexFunction {
         let sequence = &self.expansion_coefficients.vector;
         let mut antiderivative_sequence = Vec::with_capacity(sequence.len() + 1);
-        antiderivative_sequence.push(ComplexDyadic::one());
+        antiderivative_sequence.push(ComplexDyadic::zero());
         for i in 0..sequence.len() {
             antiderivative_sequence.push(
-                sequence[i] / ComplexDyadic::new(Dyadic::new(i as i128 + 2, 0), Dyadic::zero()),
+                sequence[i] / ComplexDyadic::new(Dyadic::new(i as i128 + 1, 0), Dyadic::zero()),
             )
         }
         ComplexFunction {

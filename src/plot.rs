@@ -34,6 +34,11 @@ pub fn plot_set(points: &Vec<ComplexDyadic>, filename : &str) -> Result<(), Box<
 }
 
 pub fn plot_covering_grid(grid: &HashSet<ComplexDyadic>, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let extremes = extreme_points(&grid.iter().copied().collect()).unwrap();
+    let min_real = extremes[0].re.to_f64() - 1.0 ;
+    let max_real = extremes[1].re.to_f64() + 1.0 ;
+    let min_imag = extremes[2].im.to_f64() - 1.0 ;
+    let max_imag = extremes[3].im.to_f64() + 1.0;
     let root = BitMapBackend::new(filename, (600, 600)).into_drawing_area();
     root.fill(&WHITE)?;
 
@@ -44,7 +49,7 @@ pub fn plot_covering_grid(grid: &HashSet<ComplexDyadic>, filename: &str) -> Resu
         .margin(20)
         .x_label_area_size(30)
         .y_label_area_size(30)
-        .build_cartesian_2d(range.clone(), range.clone())?;
+        .build_cartesian_2d(min_real..max_real, min_imag..max_imag)?;
 
     chart.configure_mesh().draw()?;
 
@@ -54,7 +59,7 @@ pub fn plot_covering_grid(grid: &HashSet<ComplexDyadic>, filename: &str) -> Resu
             Circle::new((x, y), 1, RED.filled())
         })
     )?;
-
+    println!("{}", grid.len()) ;
     println!("Grid plotted to {}", filename);
     Ok(())
 }
