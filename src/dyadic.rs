@@ -164,14 +164,24 @@ impl ComplexDyadic {
     pub fn powi(self, power: i32) -> Self {
         if power == 0 {
             return ComplexDyadic::one();
+        } else if power < 0 {
+            // If you want to support negative powers, handle here.
+            // For example, use self.inverse().powi(-power)
+            unimplemented!("Negative powers not implemented");
         }
 
-        let mut result = ComplexDyadic::one();
-        for _ in 0..power {
-            // println!("{result}");
-            result = result * self;
+        fn fast_pow(base: ComplexDyadic, exp: i32) -> ComplexDyadic {
+            if exp == 0 {
+                ComplexDyadic::one()
+            } else if exp % 2 == 0 {
+                let half = fast_pow(base * base, exp / 2);
+                half
+            } else {
+                base * fast_pow(base, exp - 1)
+            }
         }
-        result
+
+        fast_pow(self, power)
     }
 
     pub fn one() -> ComplexDyadic {
