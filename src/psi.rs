@@ -24,6 +24,7 @@ fn select_matching(n: u32, vec1: &Vec<u32>, vec2: &Vec<u8>) -> Vec<u8> { //words
 
 pub fn psi_infinity(m_seq: &Vec<Dyadic>, t_seq : &Vec<u32>, word : &Vec<u8>) -> Vec<ComplexDyadic> {
     let mut out = Vec::new() ;
+    out.push(ComplexDyadic::new(Dyadic::new(0,0), Dyadic::new(0, 0)));
     out.push(ComplexDyadic::new(Dyadic::new(1,0), Dyadic::new(0, 0)));
     for n in 0..m_seq.len() {
         let word_on_step = select_matching(n as u32, t_seq, word) ;
@@ -31,13 +32,13 @@ pub fn psi_infinity(m_seq: &Vec<Dyadic>, t_seq : &Vec<u32>, word : &Vec<u8>) -> 
         let word_as_list = vec_to_linked_list(word_on_step) ;
 
         let interval2 = psi(interval1, &word_as_list) ;
-
         let mid = interval2.midpoint();
         match mid {
             Some(x) => out.push(x), 
             None => panic!("Empty interval")
         }    
     }
+    
     return out
 }
 

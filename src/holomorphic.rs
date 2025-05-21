@@ -110,11 +110,11 @@ impl ComplexFunction {
     pub fn eval(&self, z: ComplexDyadic) -> ComplexDyadic {
         let mut sum = ComplexDyadic::zero();
         for i in 0..=self.expansion_coefficients.vector.len() - 1 {
-            println!("{}, {}", sum, i);
+            // println!("{}, {}", sum, i);
             sum = sum + self.expansion_coefficients.vector[i as usize] * (z.powi((i + 1) as i32));
-            println!("{}", sum)
+            // println!("{}", sum)
         }
-        return sum + ComplexDyadic::one();
+        return sum;
     }
 
     // This could need to be checked if it works properly.
