@@ -2,14 +2,8 @@ use landau::covering_grids::{
     self, create_covering_grid, extreme_points, grid_approx, grid_complement, unit_disk_n,
 };
 use landau::dyadic::{psi, ComplexDyadic, Dyadic, Interval};
-use landau::holomorphic::{
-    comp_vec_to_sequence, vec_to_sequence, BoundingSequence, ComplexFunction, ExpansionCoefficients,
-};
 use landau::plot::{self, plot_covering_grid, plot_set};
-use landau::psi::{mu_first, mu_second, psi_infinity};
 
-use landau::covering_grids::{create_covering_grid, plot_covering_grid, unit_disk_n};
-use landau::dyadic::{psi, ComplexDyadic, Dyadic, Interval};
 use landau::holomorphic::{
     comp_vec_to_sequence, vec_to_sequence, BoundingSequence, ComplexFunction, ExpansionCoefficients,
 };
