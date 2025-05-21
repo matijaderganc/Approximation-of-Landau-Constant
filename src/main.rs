@@ -2,6 +2,8 @@ use landau::covering_grids::{
     self, create_covering_grid, extreme_points, unit_disk_n, grid_complement, grid_approx
 };
 use landau::dyadic::{psi, ComplexDyadic, Dyadic, Interval};
+use landau::plot::{self, plot_covering_grid, plot_set};
+
 use landau::holomorphic::{
     comp_vec_to_sequence, vec_to_sequence, BoundingSequence, ComplexFunction, ExpansionCoefficients,
 };
@@ -9,6 +11,7 @@ use landau::psi::{mu_first, mu_second, psi_infinity};
 use landau::plot::{self, plot_set, plot_covering_grid} ;
 
 use plotters::prelude::*;
+
 use std::collections::LinkedList;
 
 fn evaluate_function(f : &Vec<ComplexDyadic>, delta : Dyadic, disk : &Vec<ComplexDyadic>) -> Option<f64> {

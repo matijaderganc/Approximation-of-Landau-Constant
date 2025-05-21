@@ -35,6 +35,13 @@ impl Dyadic {
         }
     }
 
+    pub fn reduce(self) -> Dyadic {
+        if self.numerator % 2 == 0 {
+            return Dyadic::new(self.numerator / 2, self.exponent + 1).reduce();
+        }
+        self
+    }
+
     pub fn powi(self, power: i32) -> Self {
         if power == 0 {
             return Dyadic::new(1, 0);
@@ -112,7 +119,7 @@ impl Mul for Dyadic {
 impl Div for Dyadic {
     type Output = Dyadic;
     fn div(self, other: Dyadic) -> Dyadic {
-        if other != Dyadic::zero() {
+        if other.numerator != 0 {
             Dyadic::new(
                 self.numerator / other.numerator,
                 self.exponent - other.exponent,
@@ -172,6 +179,24 @@ impl ComplexDyadic {
             result = result * self;
         }
         result
+        } else if power < 0 {
+            // If you want to support negative powers, handle here.
+            // For example, use self.inverse().powi(-power)
+            unimplemented!("Negative powers not implemented");
+        }
+
+        fn fast_pow(base: ComplexDyadic, exp: i32) -> ComplexDyadic {
+            if exp == 0 {
+                ComplexDyadic::one()
+            } else if exp % 2 == 0 {
+                let half = fast_pow(base * base, exp / 2);
+                half
+            } else {
+                base * fast_pow(base, exp - 1)
+            }
+        }
+
+        fast_pow(self, power)
     }
 
     pub fn one() -> ComplexDyadic {
