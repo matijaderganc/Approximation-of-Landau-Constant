@@ -143,15 +143,14 @@ impl Mul for Dyadic {
 
 impl Div for Dyadic {
     type Output = Dyadic;
+
     fn div(self, other: Dyadic) -> Dyadic {
-        if other.numerator != 0 {
-            Dyadic::new(
-                self.numerator / other.numerator,
-                self.exponent - other.exponent,
-            )
-        } else {
-            panic!("Division with zero Dyadic!")
+        if other.numerator == 0 {
+            panic!("Division with zero Dyadic!");
         }
+
+        let result_f64 = self.to_f64() / other.to_f64();
+        Dyadic::approximate(result_f64, 30) // adjust precision as needed
     }
 }
 
