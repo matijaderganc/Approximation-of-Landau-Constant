@@ -66,6 +66,31 @@ impl Dyadic {
             exponent: new_exponent,
         }
     }
+
+    pub fn approximate(x: f64, max_exponent: u32) -> Dyadic {
+        let mut best = Dyadic {
+            numerator: 0,
+            exponent: 0,
+        };
+        let mut min_error = f64::MAX;
+
+        for e in -(max_exponent as i32)..=(max_exponent as i32) {
+            let factor = 2f64.powi(e);
+            let approx_coeff = (x / factor).round() as i128;
+            let approx_val = approx_coeff as f64 * factor;
+            let error = (x - approx_val).abs();
+
+            if error < min_error {
+                min_error = error;
+                best = Dyadic {
+                    numerator: approx_coeff,
+                    exponent: e,
+                };
+            }
+        }
+
+        best
+    }
 }
 
 impl Add for Dyadic {

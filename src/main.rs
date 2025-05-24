@@ -14,6 +14,8 @@ use std::collections::LinkedList;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x = Dyadic::new(12, -2);
+
+    println!("{}", Dyadic::approximate(0.3, 20));
     println!("{}", x.reduce());
     let m_seq = vec![x.clone(), x.clone(), x.clone(), x.clone()];
     let t_seq = vec![0, 1, 0, 1, 2, 0, 1, 2, 2, 0, 1, 2, 3, 0, 1, 2, 3, 0];
