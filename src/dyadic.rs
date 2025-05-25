@@ -166,19 +166,10 @@ impl ComplexDyadic {
         let im = self.im.to_f64();
         return (real * real + im * im).sqrt();
     }
-
     // Add fast powering
     pub fn powi(self, power: i32) -> Self {
         if power == 0 {
             return ComplexDyadic::one();
-        }
-
-        let mut result = ComplexDyadic::one();
-        for _ in 0..power {
-            // println!("{result}");
-            result = result * self;
-        }
-        result
         } else if power < 0 {
             // If you want to support negative powers, handle here.
             // For example, use self.inverse().powi(-power)
@@ -197,7 +188,7 @@ impl ComplexDyadic {
         }
 
         fast_pow(self, power)
-    }
+    }    
 
     pub fn one() -> ComplexDyadic {
         ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0))

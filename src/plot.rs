@@ -59,7 +59,6 @@ pub fn plot_covering_grid(grid: &HashSet<ComplexDyadic>, filename: &str) -> Resu
             Circle::new((x, y), 1, RED.filled())
         })
     )?;
-    println!("{}", grid.len()) ;
     println!("Grid plotted to {}", filename);
     Ok(())
 }
