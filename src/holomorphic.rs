@@ -111,7 +111,7 @@ impl ComplexFunction {
         let mut sum = ComplexDyadic::zero();
         for i in 0..=self.expansion_coefficients.vector.len() - 1 {
             // println!("{}, {}", sum, i);
-            sum = sum + self.expansion_coefficients.vector[i as usize] * (z.powi((i + 1) as i32));
+            sum = sum + self.expansion_coefficients.vector[i as usize] * (z.powi((i) as i32));
             // println!("{}", sum)
         }
         return sum;

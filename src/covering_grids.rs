@@ -109,7 +109,7 @@ pub fn grid_complement(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> HashSe
     full_grid
 }
 
-pub fn grid_approx(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> Option<f64> {
+pub fn grid_approx(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> f64 {
     let mut max : Option<f64> = Some(delta.to_f64()) ;
     let comp = grid_complement(grid, delta) ;
     for point1 in grid{
@@ -134,7 +134,7 @@ pub fn grid_approx(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> Option<f64
             max = Some(min.unwrap())
         }
     }
-    max
+    max.unwrap() - (delta.to_f64()*4.0)
 }
 
 
