@@ -23,6 +23,21 @@ pub fn unit_disk_n( n : i32) -> Vec<ComplexDyadic> { //could be improved, we che
     }
     return points
 }
+pub fn unit_disk_n_boundary(n : i32) -> Vec<ComplexDyadic> {
+    let mut points = Vec::new()  ;
+    let max = (2i128).pow(-n as u32) ;
+    for real in -max..=max {
+        for imaginary in -max..=max {
+            let re = Dyadic::new(real, n) ;
+            let im = Dyadic::new(imaginary, n) ;
+            let z = ComplexDyadic::new(re, im) ;
+            if z.abs() <= 1.0 + Dyadic::new(1,n).to_f64() && z.abs() >= 1.0 {
+                points.push(z)
+            }
+        }
+    }
+    return points
+}
 
 pub fn extreme_points(vec : &Vec<ComplexDyadic>) -> Option<Vec<ComplexDyadic>> {
     if vec.is_empty() {
@@ -137,4 +152,30 @@ pub fn grid_approx(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> f64 {
     max.unwrap() - (delta.to_f64()*4.0)
 }
 
+pub fn grid_approx_with_edge(inside : &HashSet<ComplexDyadic>, edge: &HashSet<ComplexDyadic>, delta : Dyadic) -> f64 {
+    let mut max : Option<f64> = Some(delta.to_f64()) ;
+    for point1 in inside{
+        let mut min : Option<f64> = None ;
+        for point2 in edge {
+            let dist = (*point1 - *point2).abs() ;
+            if let Some(current_min) = min {
+                if dist < current_min {
+                    min = Some(dist)
+                }
+            }
+            else {
+                min = Some(dist)
+            }
+        }
+        if let Some(current_max) = max {
+            if min.unwrap() > current_max {
+                max = Some(min.unwrap())
+            }
+        }
+        else {
+            max = Some(min.unwrap())
+        }
+    }
+    max.unwrap() 
+}
 

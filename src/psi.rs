@@ -43,7 +43,7 @@ pub fn generate_all_words(length: usize) -> Vec<Vec<u8>> {
     result
 }
 
-fn select_matching(n: u32, vec1: &Vec<u32>, vec2: &Vec<u8>) -> Vec<u8> {
+fn select_matching(n: usize, vec1: &Vec<usize>, vec2: &Vec<u8>) -> Vec<u8> {
     //words will be u8
     let mut output = Vec::new();
 
@@ -55,11 +55,11 @@ fn select_matching(n: u32, vec1: &Vec<u32>, vec2: &Vec<u8>) -> Vec<u8> {
     output
 }
 
-pub fn psi_infinity(m_seq: &Vec<Dyadic>, t_seq: &Vec<u32>, word: &Vec<u8>) -> Vec<ComplexDyadic> {
+pub fn psi_infinity(m_seq: &Vec<Dyadic>, t_seq: &Vec<usize>, word: &Vec<u8>) -> Vec<ComplexDyadic> {
     let mut out = Vec::new();
     out.push(ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0)));
     for n in 0..m_seq.len() {
-        let word_on_step = select_matching(n as u32, t_seq, word);
+        let word_on_step = select_matching(n as usize, t_seq, word);
         let interval1 = Interval::new(
             m_seq[n] * Dyadic::new(-1, 0),
             m_seq[n],
@@ -96,4 +96,23 @@ pub fn mu_second(c: &f64, r: &Dyadic) -> f64 {
             + (c * e) / (2.0 * (1.0 - r.to_f64()).powf(2.0))
             + 2.0);
     return a;
+}
+
+fn t_stream() -> impl Iterator<Item = usize> {
+    (1usize..).flat_map(|k| 0..=k)
+}
+pub fn t_vector(len: usize) -> Vec<usize> {
+    t_stream().take(len).collect()
+}
+
+
+pub fn dyadic_ceil_with_exp(x: f64, exp: i32) -> Dyadic {
+    // scale = 2^{-exp}; if exp = -n, scale = 2^{n}
+    let step = (2.0f64).powi(exp); 
+    let y = x / step;
+    // Small safety bump to avoid rounding *below* due to FP error
+
+    let y_bumped = y + (y.abs() * f64::EPSILON + 1e-18);
+    let k = y_bumped.ceil() as i128;
+    Dyadic::new(k, exp)     // equals num * 2^{exp} >= x
 }
