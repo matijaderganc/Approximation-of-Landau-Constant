@@ -75,3 +75,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 // }
 // println!("{}", mu_first(&2.0, &x)) ;
 // println!("{}", mu_second(&2.0, &x))
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_addition_dyadic() {
+        let result = Dyadic::new(1, 1) + Dyadic::new(1, 1);
+        assert_eq!(result, Dyadic::new(2, 1));
+    }
+
+    #[test]
+    fn test_multiplication_dyadic() {
+        let result = Dyadic::new(5, 2) * Dyadic::new(3, 1);
+        assert_eq!(result, Dyadic::new(15, 3));
+    }
+
+    #[test]
+    fn test_addition_complex_dyadic() {
+        let result = ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(2, 0))
+            + ComplexDyadic::new(Dyadic::new(2, 0), Dyadic::new(3, 0));
+        assert_eq!(
+            result,
+            ComplexDyadic::new(Dyadic::new(3, 0), Dyadic::new(5, 0))
+        );
+    }
+
+    #[test]
+    fn test_multiplication_complex_dyadic() {
+        let result = ComplexDyadic::new(Dyadic::new(1, 2), Dyadic::new(2, 0))
+            * ComplexDyadic::new(Dyadic::new(2, -1), Dyadic::new(3, 0));
+        assert_eq!(
+            result,
+            ComplexDyadic::new(Dyadic::new(-2, 0), Dyadic::new(28, -1))
+        );
+    }
+}
