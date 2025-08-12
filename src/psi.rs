@@ -106,7 +106,7 @@ pub fn t_vector(len: usize) -> Vec<usize> {
 }
 
 
-pub fn dyadic_ceil_with_exp(x: f64, exp: i32) -> Dyadic {
+fn dyadic_ceil_with_exp(x: f64, exp: i32) -> Dyadic {
     // scale = 2^{-exp}; if exp = -n, scale = 2^{n}
     let step = (2.0f64).powi(exp); 
     let y = x / step;
@@ -115,4 +115,13 @@ pub fn dyadic_ceil_with_exp(x: f64, exp: i32) -> Dyadic {
     let y_bumped = y + (y.abs() * f64::EPSILON + 1e-18);
     let k = y_bumped.ceil() as i128;
     Dyadic::new(k, exp)     // equals num * 2^{exp} >= x
+}
+
+pub fn m_n(n: usize) -> Dyadic {
+    let c = 1.0 + (2.0f64).powi(-100); // c = 1 + 2^{-100}
+    let base = c * std::f64::consts::E * ((n as f64) + 2.0) * 0.5;
+    dyadic_ceil_with_exp(base, -(n as i32)) // step = 2^{-n}
+}
+pub fn m_vec(n_terms: usize) -> Vec<Dyadic> {
+    (1..=n_terms).map(m_n).collect()
 }
