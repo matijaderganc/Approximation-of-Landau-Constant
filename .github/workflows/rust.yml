@@ -1,0 +1,28 @@
+name: Rust CI
+
+on:
+  push:
+    branches:
+      - main  # Trigger workflow on pushes to the `main` branch
+  pull_request:
+    branches:
+      - main  # Trigger workflow on pull requests targeting `main`
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Define the environment
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2  # Check out the code
+
+    - name: Set up Rust
+      uses: actions/setup-rust@v1
+      with:
+        rust-version: stable  # You can specify the version you want (e.g., stable)
+
+    - name: Install dependencies
+      run: cargo build --release  # Run this to install dependencies
+
+    - name: Run tests
+      run: cargo test --verbose  # This will run your tests
