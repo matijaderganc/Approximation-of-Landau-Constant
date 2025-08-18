@@ -7,12 +7,12 @@ use landau::plot::{plot_covering_grid, plot_set};
 use landau::holomorphic::{
     BoundingSequence, ComplexFunction, ExpansionCoefficients,
 };
-use landau::psi::{generate_all_words, psi_infinity, t_vector, m_n, m_vec};
+use landau::psi::{generate_all_words, psi_infinity, t_vector, m_vec, generate_word};
 use landau::edt::{edt_1d_squared, edt_2d_squared, print_grid, landau_l_with_edt_from_complex_set} ;
 
 use std::vec;
-
-const INF: f64 = 1e20;
+use std::time::{Duration, Instant};
+fn ms(d: Duration) -> f64 { d.as_secs_f64() * 1000.0 }
 
 
 fn evaluate_function(f : &Vec<ComplexDyadic>, delta : Dyadic, image_acc : i32) -> f64 {
@@ -42,27 +42,31 @@ fn evaluate_function(f : &Vec<ComplexDyadic>, delta : Dyadic, image_acc : i32) -
 } 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- parameters (tweak if you like) ---
-    let eps_over_4 = Dyadic::new(1, -3); // ε/4 = 2^-3
-    let delta      = Dyadic::new(1, -5); // δ   = 2^-5  (δ ≤ ε/4)
-    let radius_n   = -4;                 // sample D_{1-2^{-6}}
-
+    let eps_over_4 = Dyadic::new(1, -5); // ε/4 = 2^-3
+    let delta      = Dyadic::new(1, -7); // δ   = 2^-5  (δ ≤ ε/4)
+    let radius_n   = -6;                 // sample D_{1-2^{-6}}
     // --- sequences used consistently everywhere ---
     // Use the same m_seq & t_seq for the search and the final plot.
     // (Here I keep your small hand-picked m_seq; swap for m_vec(N) if you want.)
-    let m_seq = m_vec(4) ;
+    let m_seq = vec![Dyadic::new(1, -1), Dyadic::new(1, -1), Dyadic::new(1, -2), Dyadic::new(1, -3), Dyadic::new(1, -3)];
+    // let m_seq = m_vec(15) ;
     let t_seq: Vec<usize> = t_vector(64); // dispatcher; make it long enough
 
     // --- precompute the domain sample once ---
     let domain = unit_disk_n(radius_n);
+    
 
     // --- search over words of length 6 ---
-    let mut best_word: Vec<u8> = vec![1, 1, 3, 1];
-    let mut best_l = f64::INFINITY;
+    let mut best_word: Vec<u8> = vec![];
+    let mut best_l = 100.0;
 
     // Reuse buffers across iterations
     let mut img: Vec<ComplexDyadic> = Vec::with_capacity(domain.len());
 
-    for word in generate_all_words(8) {
+    for i  in 0..1000 {
+        // let t1 = Instant::now();
+
+        let word = generate_word(30);
         // coefficients from ψ∞
         let coeffs = psi_infinity(&m_seq, &t_seq, &word);
 
@@ -72,18 +76,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ExpansionCoefficients::new(coeffs),
         );
         let f = fprime.antiderivative();
-
+        // let dt_1 = t1.elapsed() ;
+        // println!("time spent creating func: {}", ms(dt_1)) ;
         // evaluate on the domain
+        // let t2: Instant = Instant::now();
+
         img.clear();
         for &z in &domain {
             img.push(f.eval(z));
         }
-
+        // let dt_2 = t2.elapsed() ;
+        // println!("time spent evaluating: {}", ms(dt_2)) ;
         // covering grid of the image (ε/4, δ)  — ensure this matches your function’s arg order
-        let grid = create_covering_grid(&img, eps_over_4, delta);
+        // let t3: Instant = Instant::now();
 
+        let grid = create_covering_grid(&img, eps_over_4, delta);
+        // let dt_3 = t3.elapsed() ;
+        // println!("time spent creating grid: {}", ms(dt_3)) ;
         // linear-time Landau l via EDT
+        // let t4: Instant = Instant::now();
         let l_val = landau_l_with_edt_from_complex_set(&grid, delta);
+        // let dt_4 = t4.elapsed() ;
+        // println!("time spent edt: {}", ms(dt_4)) ;
         if l_val < best_l {
             best_l = l_val;
             best_word = word; // `word` is moved from the iterator; fine

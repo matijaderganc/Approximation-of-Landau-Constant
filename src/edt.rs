@@ -48,11 +48,12 @@ pub fn edt_1d_squared(f: &[f64]) -> Vec<f64> {
     g
 }
 
+
 pub fn edt_2d_squared(img: &mut [f64], width: usize, height: usize) {
     // pass A: columns
     {
-        let mut col = vec![0f64; height];
-        let mut out = vec![0f64; height];
+        let mut col = vec![0.0; height];
+        let mut out = vec![0.0; height];
         for x in 0..width {
             for y in 0..height { col[y] = img[y * width + x]; }
             let tmp = edt_1d_squared(&col);
@@ -60,17 +61,17 @@ pub fn edt_2d_squared(img: &mut [f64], width: usize, height: usize) {
             for y in 0..height { img[y * width + x] = out[y]; }
         }
     }
-    // pass B: rows
-    // {
-    //     let mut row = vec![0f64; width];
-    //     let mut out = vec![0f64; width];
-    //     for y in 0..height {
-    //         for x in 0..width { row[x] = img[y * width + x]; }
-    //         let tmp = edt_1d_squared(&row);
-    //         out.copy_from_slice(&tmp);
-    //         for x in 0..width { img[y * width + x] = out[x]; }
-    //     }
-    // }
+    // pass B: rows  <-- UNCOMMENT THIS WHOLE BLOCK
+    {
+        let mut row = vec![0.0; width];
+        let mut out = vec![0.0; width];
+        for y in 0..height {
+            for x in 0..width { row[x] = img[y * width + x]; }
+            let tmp = edt_1d_squared(&row);
+            out.copy_from_slice(&tmp);
+            for x in 0..width { img[y * width + x] = out[x]; }
+        }
+    }
 }
 
 pub fn print_grid(label: &str, img: &[f64], w: usize, h: usize, sqrt: bool) {

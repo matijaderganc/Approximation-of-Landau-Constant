@@ -66,35 +66,50 @@ pub fn extreme_points(vec : &Vec<ComplexDyadic>) -> Option<Vec<ComplexDyadic>> {
 }
 
 pub fn create_covering_grid(set : &Vec<ComplexDyadic>, epsilon : Dyadic, delta : Dyadic) -> HashSet<ComplexDyadic> {
-    let mut grid = HashSet::new();
+    let mut out: HashSet<ComplexDyadic> = HashSet::new();
     let delta_f64 = delta.to_f64();
-    let epsilon_f64 = epsilon.to_f64();
-    if set.is_empty() {
-        return grid;
-    }
+    if set.is_empty() { return out; }
 
-    let grid_radius = (epsilon.to_f64() / delta.to_f64()).ceil() as i128;
+    let delta_f = delta.to_f64();
+    let eps_f   = epsilon.to_f64();
+    let inv_d   = 1.0 / delta_f;
+    
+    let r_float = eps_f * inv_d;           // ε / δ
+    let r       = r_float.ceil() as i32;   // search square radius
+    let r2      = r_float * r_float; 
+    let mut lattice: HashSet<(i32, i32)> = HashSet::with_capacity(set.len() * ((2*r + 1) as usize));
+
     for a in set {
-        let real_a = a.re.to_f64();
-        let imag_a = a.im.to_f64();
-        let center_real = (real_a / delta.to_f64()).round() as i128;
-        let center_imag = (imag_a / delta.to_f64()).round() as i128;
-        let center = ComplexDyadic::new(Dyadic::new(center_real, 0) * delta, Dyadic::new(center_imag, 0) * delta) ;
-        for dr in -grid_radius..=grid_radius {
-            for di in -grid_radius..=grid_radius {
-                let diff = ComplexDyadic::new(Dyadic::new(dr, 0) * delta, Dyadic::new(di, 0) * delta) ;
+        let ax = a.re.to_f64();
+        let ay = a.im.to_f64();
+        
+        let cx_f = ax * inv_d;
+        let cy_f = ay * inv_d;
+        let cx   = cx_f.round() as i32;
+        let cy   = cy_f.round() as i32;
 
-                let candidate = center + diff ;
+        for di in -r..=r {
+            let dx = (cx + di) as f64 - cx_f;    // lattice delta in x (units of lattice steps)
+            let dx2 = dx * dx;
+            // quick reject if already beyond radius horizontally
+            if dx2 > r2 { continue; }
 
-                let sub = *a - candidate.clone() ;
-                let dist2 = sub.abs() ;
-                if dist2 <= epsilon_f64 {
-                    grid.insert(candidate);
+            for dj in -r..=r {
+                let dy = (cy + dj) as f64 - cy_f;
+                if dx2 + dy*dy <= r2 + 1e-12 {   // small epsilon to be robust against FP ties
+                    lattice.insert((cx + di, cy + dj));
                 }
-            }
-        }
+            }}
+    } 
+    out.reserve(lattice.len());
+    for (i, j) in lattice {
+        // i*δ, j*δ  (use your dyadic ops; this happens once per kept cell)
+        let re = Dyadic::new(i as i128, 0) * delta;
+        let im = Dyadic::new(j as i128, 0) * delta;
+        out.insert(ComplexDyadic::new(re, im));
     }
-    grid
+
+    out
 }
 
 pub fn grid_complement(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> HashSet<ComplexDyadic> {
