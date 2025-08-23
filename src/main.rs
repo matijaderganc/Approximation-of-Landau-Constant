@@ -108,7 +108,23 @@ mod tests {
             * ComplexDyadic::new(Dyadic::new(2, -1), Dyadic::new(3, 0));
         assert_eq!(
             result,
-            ComplexDyadic::new(Dyadic::new(-2, 0), Dyadic::new(28, -1))
+            ComplexDyadic::new(Dyadic::new(-2, 0), Dyadic::new(14, 0))
         );
     }
+
+    #[test]
+    fn test_eval() {
+        let x = ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::zero());
+        let m_seq = vec![x.clone(), x.clone(), x.clone(), x.clone()];
+        let f = ComplexFunction::new(
+            BoundingSequence::new(vec![Dyadic::new(2, 0), Dyadic::new(2, 0)]),
+            ExpansionCoefficients::new(vec![x.clone(), x.clone(), x.clone()]),
+        );
+        assert_eq!(
+            f.eval(ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::zero())),
+            ComplexDyadic::new(Dyadic::new(3, 0), Dyadic::zero())
+        );
+    }
+
+    // Implement test for derrivative of complex functions
 }

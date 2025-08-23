@@ -5,10 +5,11 @@
 // - do some basic testing to see function return expected values
 
 // Call the Dyadic type from dyadic.rs:
-use crate::dyadic::{add_complex_vec, add_vec, sub_complex_vec, ComplexDyadic, Dyadic};
 use std::ops::{Add, Bound, Div, Mul, Sub}; //division not yet implemented
 use std::sync::Arc;
 use std::vec;
+
+use crate::dyadic::{ComplexDyadic, Dyadic, add_complex_vec, add_vec, sub_complex_vec};
 
 // Function to map vector to function which returns n-th element.
 pub fn vec_to_sequence(vec: &Vec<Dyadic>) -> impl Fn(u32) -> Dyadic + '_ {
@@ -45,7 +46,7 @@ impl Add for BoundingSequence {
 
 impl BoundingSequence {
     pub fn new(vector: Vec<Dyadic>) -> BoundingSequence {
-        BoundingSequence { vector: vector }
+        BoundingSequence { vector }
     }
 }
 
@@ -78,7 +79,7 @@ impl Sub for ExpansionCoefficients {
 
 impl ExpansionCoefficients {
     pub fn new(vector: Vec<ComplexDyadic>) -> ExpansionCoefficients {
-        ExpansionCoefficients { vector: vector }
+        ExpansionCoefficients { vector }
     }
 }
 
@@ -101,8 +102,8 @@ impl ComplexFunction {
         let len = len as u32;
 
         ComplexFunction {
-            bounding_sequence: bounding_sequence,
-            expansion_coefficients: expansion_coefficients,
+            bounding_sequence,
+            expansion_coefficients,
             upper_limit_of_summation: len,
         }
     }
@@ -111,10 +112,10 @@ impl ComplexFunction {
         let mut sum = ComplexDyadic::zero();
         for i in 0..=self.expansion_coefficients.vector.len() - 1 {
             // println!("{}, {}", sum, i);
-            sum = sum + self.expansion_coefficients.vector[i as usize] * (z.powi((i + 1) as i32));
+            sum = sum + self.expansion_coefficients.vector[i] * (z.powi((i + 1) as i32));
             // println!("{}", sum)
         }
-        return sum;
+        sum
     }
 
     // This could need to be checked if it works properly.

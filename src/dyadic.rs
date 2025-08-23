@@ -1,15 +1,15 @@
-use std::collections::LinkedList;
-//use num_complex::Complex;
-use std::fmt::{self, write, UpperExp};
-
 // use std::intrinsics::sqrtf64;
 use std::cmp::Ordering;
+use std::collections::LinkedList;
+//use num_complex::Complex;
+use std::fmt::{self, UpperExp, write};
+use std::hash::Hash;
 use std::io::Empty;
 use std::ops::{Add, Div, Mul, Sub};
 
 use plotters::element::ComposedElement; //division not yet implemented
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 
 // Define dyadic type
 pub struct Dyadic {
@@ -36,10 +36,13 @@ impl Dyadic {
     }
 
     pub fn reduce(self) -> Dyadic {
-        if self.numerator % 2 == 0 {
-            return Dyadic::new(self.numerator / 2, self.exponent + 1).reduce();
+        let mut numerator = self.numerator;
+        let mut exponent = self.exponent;
+        while numerator % 2 == 0 && numerator != 0 {
+            numerator /= 2;
+            exponent += 1;
         }
-        self
+        Dyadic::new(numerator, exponent)
     }
 
     pub fn powi(self, power: i32) -> Self {
@@ -97,19 +100,21 @@ impl Add for Dyadic {
     type Output = Dyadic;
     fn add(self, other: Dyadic) -> Dyadic {
         let exp_diff = self.exponent - other.exponent;
+
+        let result_numerator;
+        let result_exponent;
+
         if exp_diff > 0 {
-            Dyadic::new(
-                other.numerator + (self.numerator << exp_diff),
-                other.exponent,
-            )
+            result_numerator = other.numerator + (self.numerator << exp_diff);
+            result_exponent = other.exponent;
         } else {
-            Dyadic::new(
-                (other.numerator << -exp_diff) + self.numerator,
-                self.exponent,
-            )
+            result_numerator = (other.numerator << -exp_diff) + self.numerator;
+            result_exponent = self.exponent;
         }
+        Dyadic::new(result_numerator, result_exponent).reduce()
     }
 }
+
 impl Sub for Dyadic {
     type Output = Dyadic;
 
@@ -121,11 +126,13 @@ impl Sub for Dyadic {
                 -other.numerator + (self.numerator << exp_diff),
                 other.exponent,
             )
+            .reduce()
         } else {
             Dyadic::new(
                 -(other.numerator << -exp_diff) + self.numerator,
                 self.exponent,
             )
+            .reduce()
         }
     }
 }
@@ -138,6 +145,7 @@ impl Mul for Dyadic {
             self.numerator * other.numerator,
             self.exponent + other.exponent,
         )
+        .reduce()
     }
 }
 
@@ -150,13 +158,33 @@ impl Div for Dyadic {
         }
 
         let result_f64 = self.to_f64() / other.to_f64();
-        Dyadic::approximate(result_f64, 30) // adjust precision as needed
+        Dyadic::approximate(result_f64, 30).reduce() // adjust precision as needed
     }
 }
 
 impl PartialOrd for Dyadic {
     fn partial_cmp(&self, other: &Dyadic) -> Option<Ordering> {
         Some(self.to_f64().partial_cmp(&other.to_f64()).unwrap())
+    }
+}
+
+impl PartialEq for Dyadic {
+    fn eq(&self, other: &Self) -> bool {
+        // Reduce both dyadics and compare
+        let self_reduced = self.reduce();
+        let other_reduced = other.reduce();
+
+        self_reduced.numerator == other_reduced.numerator
+            && self_reduced.exponent == other_reduced.exponent
+    }
+}
+
+impl Eq for Dyadic {}
+
+impl Hash for Dyadic {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.numerator.hash(state);
+        self.exponent.hash(state)
     }
 }
 
@@ -183,7 +211,7 @@ pub struct ComplexDyadic {
 
 impl ComplexDyadic {
     pub fn new(re: Dyadic, im: Dyadic) -> ComplexDyadic {
-        ComplexDyadic { re: re, im: im }
+        ComplexDyadic { re, im }
     }
     pub fn abs(&self) -> f64 {
         let real = self.re.to_f64();
@@ -233,14 +261,15 @@ impl ComplexDyadic {
 impl Add for ComplexDyadic {
     type Output = ComplexDyadic;
     fn add(self, other: ComplexDyadic) -> ComplexDyadic {
-        return ComplexDyadic::new(self.re + other.re, self.im + other.im); // Does this compile?
+        println!("Adding Dyadic: {:?} + {:?}", self, other);
+        ComplexDyadic::new(self.re + other.re, self.im + other.im) // Does this compile?
     }
 }
 
 impl Sub for ComplexDyadic {
     type Output = ComplexDyadic;
     fn sub(self, other: ComplexDyadic) -> ComplexDyadic {
-        return ComplexDyadic::new(self.re - other.re, self.im - other.im); // Is this in line with definitions of add and sub for Dyadic numbers?
+        ComplexDyadic::new(self.re - other.re, self.im - other.im) // Is this in line with definitions of add and sub for Dyadic numbers?
     }
 }
 
@@ -369,7 +398,11 @@ impl fmt::Display for Interval {
         match self {
             Interval::Empty => write!(f, "Empty"),
             Interval::Bounded(x_min, x_max, y_min, y_max) => {
-                write!(f, "[{}, {}] x [{}, {}]", x_min, x_max, y_min, y_max)
+                write!(
+                    f,
+                    "[{}, {}] x [{}, {}]",
+                    x_min, x_max, y_min, y_max
+                )
             }
         }
     }
@@ -411,6 +444,9 @@ fn split(rect: Interval, n: u8) -> Interval {
 pub fn psi(int1: Interval, lst: &LinkedList<u8>) -> Interval {
     match lst.front() {
         None => int1,
-        Some(&fst) => psi(split(int1, fst), &lst.iter().skip(1).cloned().collect()),
+        Some(&fst) => psi(
+            split(int1, fst),
+            &lst.iter().skip(1).cloned().collect(),
+        ),
     }
 }
