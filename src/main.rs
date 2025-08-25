@@ -1,3 +1,5 @@
+use std::collections::LinkedList;
+
 use landau::covering_grids::{
     covering_grid_bitmap, create_covering_grid, extreme_points, grid_approx_with_edge, unit_disk_n, unit_disk_n_boundary
 };
@@ -140,72 +142,84 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+// add these to tests!!!
 
-    // for z in &holo1 {
-    //     println!("{:?}", z)
-    // }
-    // let mut min = 5.0 ;
-   
+// let y = Dyadic::new(5, -2);
+// let z = Dyadic::new(4, -1);
+// let w = Dyadic::new(7, -1);
+// let i1 = Interval::new(x, y, z, w);
 
-    // let min_func = psi_infinity(&m_seq, &t_seq, &min_word) ;
+// let mut word = LinkedList::new();
+// for _ in 0..5 {
+//     word.push_back(1);
+// }
+// let i3 = psi(i1, &word) ;
+// print!("{}", i3) ;
 
-    // // let val = evaluate_function(&holo1, Dyadic::new(1, -4), -5);
-    // // println!("\n this is min approx {}", val) ;
+// let alpha = ComplexDyadic::new(x, y);
+// let beta = ComplexDyadic::new(z, w) ;
+// let gamma = i1.midpoint().unwrap() ;
+// println!("{}", alpha * beta) ;
+// println!("{}, {}", i1, gamma)
 
-    
-
-    // let disk1 = unit_disk_n(-6) ;
-    // for x in &disk1 {
-    //     min_im.push(min_integral.eval(*x))
-    // }    ;
-    // plot_set(&min_im, "min_image.png") ;
-    // let min_grid = create_covering_grid(&min_im, Dyadic::new(1, -2), Dyadic::new(1, -4)) ;
-    // println!("{}", min_grid.len()) ;
-
-    // plot_covering_grid(&min_grid, "min_grid.png") ;
-
-
-// let mut min_word: Vec<_> = vec![] ;
-    // let mut min = 5.0 ;
-    // let disk1 = unit_disk_n(-3) ;
-    // let disk_boundary = unit_disk_n_boundary(-5) ;
-    // plot_set(&disk_boundary, "boundary.png") ;
-
-    // for i in 0..100 {
-    //     let m_seq = vec![Dyadic::new(1, 0), Dyadic::new(1, -1), Dyadic::new(1, -1), Dyadic::new(1, -2)] ;
-    //     let t_seq = vec![0, 1, 0, 1, 2, 0, 1, 2, 2, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3];
-    //     let word = generate_word(30);
-    //     let holo1 = psi_infinity(&m_seq, &t_seq, &word) ;
-    //     let val = evaluate_function(&holo1, Dyadic::new(1, -3), &disk1);
-        
-    //     if  val < min {
-    //         min = val ;
-    //         min_word = word
-    //     }
-    // }
-    // print!(" this is min word{:?}", min_word) ;
-    // println!("\n this is min approx {}", min) ;
-    // min = 5.0 ;
-
-// let min_func: Vec<ComplexDyadic> = psi_infinity(&m_seq1, &t_seq1, &word_min) ;
-    // let min_func: Vec<ComplexDyadic> = vec![ComplexDyadic::zero(), ComplexDyadic::one(), ComplexDyadic::zero(), ComplexDyadic::new(Dyadic::new(-1, -2), Dyadic::zero()), ComplexDyadic::zero(), ComplexDyadic::new(Dyadic::new(-1, -3), Dyadic::zero()), ComplexDyadic::zero(), ComplexDyadic::new(Dyadic::new(-1, -3), Dyadic::zero())] ;
-    
-// println!("{}", evaluate_function(&min_func, Dyadic::new(1, -3), &disk).unwrap()) ;
-    // let x: ComplexDyadic = ComplexDyadic::new(Dyadic::new(1, -2), Dyadic::new(1, -2)) ;
-
-// println!("{}, {}", x, min_complex.eval(x)) ;
-    // println!("done evaluating") ;
-    // for c in min_complex.expansion_coefficients.vector {
-    //         println!("{}", c)
-    //     }
-        
-    // println!("done with first complex function") ;
-    // for x in min_integral.expansion_coefficients.vector {
-    //     println!("{}", x)
-    // }
-    // let value = evaluate_function(&min_func, Dyadic::new(1, -5), &disk) ;
-    // println!("{}", value) ;
-// // add these to tests!!!
+// for a in holo{
+//     println!("{}, {}", a, a.abs())
+// }
+// println!("{}", mu_first(&2.0, &x)) ;
+// println!("{}", mu_second(&2.0, &x))
 
 
+// Test to ensure basic operation and functions perform properly. More test can be added as needed.
+#[cfg(test)]
+mod tests {
+    use super::*;
 
+    #[test]
+    fn test_addition_dyadic() {
+        let result = Dyadic::new(1, 1) + Dyadic::new(1, 1);
+        assert_eq!(result, Dyadic::new(2, 1));
+    }
+
+    #[test]
+    fn test_multiplication_dyadic() {
+        let result = Dyadic::new(5, 2) * Dyadic::new(3, 1);
+        assert_eq!(result, Dyadic::new(15, 3));
+    }
+
+    #[test]
+    fn test_addition_complex_dyadic() {
+        let result = ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(2, 0))
+            + ComplexDyadic::new(Dyadic::new(2, 0), Dyadic::new(3, 0));
+        assert_eq!(
+            result,
+            ComplexDyadic::new(Dyadic::new(3, 0), Dyadic::new(5, 0))
+        );
+    }
+
+    #[test]
+    fn test_multiplication_complex_dyadic() {
+        let result = ComplexDyadic::new(Dyadic::new(1, 2), Dyadic::new(2, 0))
+            * ComplexDyadic::new(Dyadic::new(2, -1), Dyadic::new(3, 0));
+        assert_eq!(
+            result,
+            ComplexDyadic::new(Dyadic::new(-2, 0), Dyadic::new(14, 0))
+        );
+    }
+
+    #[test]
+    fn test_eval() {
+        let x = ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::zero());
+        let m_seq = vec![x.clone(), x.clone(), x.clone(), x.clone()];
+        let f = ComplexFunction::new(
+            BoundingSequence::new(vec![Dyadic::new(2, 0), Dyadic::new(2, 0)]),
+            ExpansionCoefficients::new(vec![x.clone(), x.clone(), x.clone()]),
+        );
+        assert_eq!(
+            f.eval(ComplexDyadic::new(
+                Dyadic::new(1, 0),
+                Dyadic::zero()
+            )),
+            ComplexDyadic::new(Dyadic::new(3, 0), Dyadic::zero())
+        );
+    }
+}
