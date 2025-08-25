@@ -416,61 +416,6 @@ pub fn sub_complex_vec(a: &Vec<ComplexDyadic>, b: &Vec<ComplexDyadic>) -> Vec<Co
     result
 }
 
-/// coeffs[k] is the coefficient of z^k (k=0 is constant term).
-#[derive(Clone, Debug, PartialEq)]
-pub struct PowerSeries {
-    pub coeffs: Vec<ComplexDyadic>,
-}
-
-impl PowerSeries {
-    /// f'(z) where f(z) = Σ_{k>=0} c_k z^k  ==>  f'(z) = Σ_{k>=0} (k+1)c_{k+1} z^k
-    pub fn derivative(&self) -> PowerSeries {
-        let n = self.coeffs.len();
-        if n == 0 {
-            return PowerSeries { coeffs: vec![] };
-        }
-        let mut out = Vec::with_capacity(n.saturating_sub(1));
-        for k in 0..n.saturating_sub(1) {
-            // multiply coeff of z^{k+1} by (k+1)
-            let factor = ComplexDyadic::from_i64((k as i64) + 1);
-            out.push(self.coeffs[k + 1].clone() * factor);
-        }
-        PowerSeries { coeffs: out }
-    }
-
-    /// ∫g(z)dz with constant of integration = 0
-    /// If g(z) = Σ_{k>=0} d_k z^k, then ∫g = Σ_{k>=0} d_k z^{k+1}/(k+1)
-    /// You must choose a dyadic division precision for 1/(k+1).
-    pub fn antiderivative(&self, bits: u32) -> PowerSeries {
-        let n = self.coeffs.len();
-        let mut out = Vec::with_capacity(n + 1);
-        // constant term set to 0 to enforce f(0)=0
-        out.push(ComplexDyadic::zero());
-        for k in 0..n {
-            out.push(self.coeffs[k].clone().div_i64((k as i64) + 1, bits));
-        }
-        PowerSeries { coeffs: out }
-    }
-}
-
-impl PowerSeries {
-    /// Build f(z) from its derivative series f'(z) (expects f'(0)=1), with f(0)=0.
-    pub fn from_fprime(fprime: &PowerSeries, bits: u32) -> PowerSeries {
-        // Optionally assert normalization (keep it loose in debug mode).
-        if let Some(c0) = fprime.coeffs.get(0) {
-            debug_assert!(
-                c0 == &ComplexDyadic::from_i64(1),
-                "expected f'(0)=1"
-            );
-        }
-        fprime.antiderivative(bits)
-    }
-
-    /// Compute f'(z) from f(z) (pure algebraic derivative).
-    pub fn fprime(&self) -> PowerSeries {
-        self.derivative()
-    }
-}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
 // Define interval type
@@ -585,6 +530,7 @@ pub fn psi(int1: Interval, lst: &LinkedList<u8>) -> Interval {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::holomorphic::ExpansionCoefficients;
 
     #[test]
     fn test_div_with_precision_real() {
@@ -645,8 +591,8 @@ mod tests {
     #[test]
     fn derivative_basic() {
         // f(z) = z + 2z^2 + 3z^3  =>  f'(z) = 1 + 4z + 9z^2
-        let f = PowerSeries {
-            coeffs: vec![
+        let f = ExpansionCoefficients {
+            vector: vec![
                 ComplexDyadic::zero(),      // c0
                 ComplexDyadic::from_i64(1), // c1
                 ComplexDyadic::from_i64(2), // c2
@@ -655,7 +601,7 @@ mod tests {
         };
         let fp = f.derivative();
         assert_eq!(
-            fp.coeffs,
+            fp.vector,
             vec![
                 ComplexDyadic::from_i64(1), // 1
                 ComplexDyadic::from_i64(4), // 4
@@ -667,8 +613,8 @@ mod tests {
     #[test]
     fn antiderivative_basic() {
         // f'(z) = 1 + 2z + 3z^2  =>  f(z) = z + (2/2)z^2 + (3/3)z^3 = z + z^2 + z^3
-        let fprime = PowerSeries {
-            coeffs: vec![
+        let fprime = ExpansionCoefficients {
+            vector: vec![
                 ComplexDyadic::from_i64(1),
                 ComplexDyadic::from_i64(2),
                 ComplexDyadic::from_i64(3),
@@ -676,7 +622,7 @@ mod tests {
         };
         let f = fprime.antiderivative(60); // 60 dyadic bits for safety
         assert_eq!(
-            f.coeffs,
+            f.vector,
             vec![
                 ComplexDyadic::zero(),
                 ComplexDyadic::from_i64(1),
@@ -685,6 +631,6 @@ mod tests {
             ]
         );
         // And derivative gets us back:
-        assert_eq!(f.derivative().coeffs, fprime.coeffs);
+        assert_eq!(f.derivative().vector, fprime.vector);
     }
 }

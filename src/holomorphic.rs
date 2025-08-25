@@ -54,7 +54,7 @@ impl BoundingSequence {
 // By definition of any given sequence, the real an imaginary part of a_i are both bounded by m_i for a sequence m_n of the type BoundingSequence.
 #[derive(Clone)]
 pub struct ExpansionCoefficients {
-    vector: Vec<ComplexDyadic>,
+    pub vector: Vec<ComplexDyadic>,
 }
 
 impl Add for ExpansionCoefficients {
