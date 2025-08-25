@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
 
     steps:
       - name: Checkout
@@ -17,14 +19,21 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
         # with:
-        #   components: clippy,rustfmt   # uncomment if you need these
+        #   components: clippy,rustfmt
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libfontconfig1-dev \
+            libfreetype6-dev
 
       - name: Build
         run: cargo build --release
 
       - name: Test
         run: cargo test --verbose
-
