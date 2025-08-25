@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::f64;
 use crate::dyadic::{ComplexDyadic, Dyadic};
+use crate::covering_grids::{GridBitmap} ;
 use std::collections::{HashMap};
 
 // Felzenszwalb & Huttenlocher (2004), "Distance Transforms of Sampled Functions"
@@ -152,3 +153,25 @@ pub fn landau_l_with_edt_from_complex_set(
     step + step * max_sq.sqrt()
 }
 
+pub fn landau_l_via_edt_from_bitmap(g: &GridBitmap, delta: Dyadic) -> f64 {
+    // Build the EDT field: 0 at complement, INF at inside
+    let mut field = vec![0.0f64; g.width * g.height];
+    for (idx, &pix) in g.data.iter().enumerate() {
+        if pix != 0 { field[idx] = INF; }
+    }
+
+    // Exact squared Euclidean distances, in-place
+    edt_2d_squared(&mut field, g.width, g.height);
+
+    // Max over inside cells only
+    let mut max_sq = 0.0f64;
+    for (idx, &pix) in g.data.iter().enumerate() {
+        if pix != 0 {
+            let d2 = field[idx];
+            if d2.is_finite() && d2 > max_sq { max_sq = d2; }
+        }
+    }
+
+    let d = delta.to_f64();
+    d + d * max_sq.sqrt()
+}

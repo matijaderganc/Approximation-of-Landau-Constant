@@ -194,3 +194,119 @@ pub fn grid_approx_with_edge(inside : &HashSet<ComplexDyadic>, edge: &HashSet<Co
     max.unwrap() 
 }
 
+// we will now write a faster version of grid creation that creates a hash map directly and doesnt bother with 
+// complex dyadics, as the type is not important for creating grids and calculating distances
+/// Build an ε-covering grid of the image as a **direct bitmap** (fast).
+/// - `points`: samples of the image f(D_r)
+/// - `epsilon`: ε/4 or whatever you use upstream for covering
+/// - `delta`: lattice step δ (must satisfy δ ≤ ε/4 for the proof)
+///
+/// This is much faster than inserting ComplexDyadics into a HashSet: it works
+/// in lattice units (integers + f64) and only allocates the dense bitmap once.
+pub struct GridBitmap {
+    pub width: usize,
+    pub height: usize,
+    pub origin_i: i32,
+    pub origin_j: i32,
+    pub data: Vec<u8>, // 0 = complement, 1 = inside
+}
+
+pub fn covering_grid_bitmap(points: &[ComplexDyadic], epsilon: Dyadic, delta: Dyadic) -> GridBitmap {
+    assert!(!points.is_empty(), "covering_grid_bitmap: empty image set");
+
+    let delta_f = delta.to_f64();
+    let eps_f   = epsilon.to_f64();
+    let inv_d   = 1.0 / delta_f;
+
+    let r_f = eps_f * inv_d;          // ε / δ
+    let r   = r_f.ceil() as i32;      // integer square radius
+    let r2  = r_f * r_f;
+
+    #[derive(Copy, Clone)]
+    struct Center { cx: i32, cy: i32, fx: f64, fy: f64 }
+    let mut centers: Vec<Center> = Vec::with_capacity(points.len());
+    let (mut min_i, mut max_i, mut min_j, mut max_j) = (i32::MAX, i32::MIN, i32::MAX, i32::MIN);
+
+    for z in points {
+        let ax = z.re.to_f64();
+        let ay = z.im.to_f64();
+
+        let cx_f = ax * inv_d;
+        let cy_f = ay * inv_d;
+
+        let cx = cx_f.round() as i32;
+        let cy = cy_f.round() as i32;
+
+        // sub-pixel offsets (in lattice units), in [-0.5, 0.5]
+        let fx = cx as f64 - cx_f;
+        let fy = cy as f64 - cy_f;
+
+        centers.push(Center { cx, cy, fx, fy });
+
+        // bbox grows by ±r around each center
+        if cx - r < min_i { min_i = cx - r; }
+        if cx + r > max_i { max_i = cx + r; }
+        if cy - r < min_j { min_j = cy - r; }
+        if cy + r > max_j { max_j = cy + r; }
+    }
+
+    min_i -= 1; max_i += 1; min_j -= 1; max_j += 1;
+
+    let width  = (max_i - min_i + 1) as usize;
+    let height = (max_j - min_j + 1) as usize;
+
+    // Dense bitmap (0 = complement, 1 = inside)
+    let mut data = vec![0u8; width * height];
+
+    for c in &centers {
+        // sweep around the center within the square [-r, r]^2
+        for di in -r..=r {
+            let dx = di as f64 + c.fx;
+            let dx2 = dx * dx;
+            if dx2 > r2 { continue; } // early skip if horizontal distance already too large
+            let x = (c.cx + di - min_i) as usize;
+
+            for dj in -r..=r {
+                let dy = dj as f64 + c.fy;
+                if dx2 + dy*dy <= r2 + 1e-12 {
+                    let y = (c.cy + dj - min_j) as usize;
+                    data[y * width + x] = 1;
+                }
+            }
+        }
+    }
+
+    GridBitmap { width, height, origin_i: min_i, origin_j: min_j, data }
+}
+
+pub fn bitmap_to_complex_set(g: &GridBitmap, delta: Dyadic) -> HashSet<ComplexDyadic> {
+    let mut out = HashSet::new();
+    if g.data.is_empty() { return out; }
+
+    // Precompute dyadic coordinates for each column (x) and row (y).
+    // re_vals[x] = (origin_i + x) * delta, im_vals[y] = (origin_j + y) * delta
+    let mut re_vals: Vec<Dyadic> = Vec::with_capacity(g.width);
+    for x in 0..g.width {
+        let i = g.origin_i as i128 + x as i128;
+        re_vals.push(Dyadic::new(i, 0) * delta);
+    }
+    let mut im_vals: Vec<Dyadic> = Vec::with_capacity(g.height);
+    for y in 0..g.height {
+        let j = g.origin_j as i128 + y as i128;
+        im_vals.push(Dyadic::new(j, 0) * delta);
+    }
+
+    // Emit a ComplexDyadic for each inside pixel
+    out.reserve(g.width * g.height / 8 + 1); // rough pre-reserve to reduce rehashing
+    for y in 0..g.height {
+        for x in 0..g.width {
+            if g.data[y * g.width + x] != 0 {
+                let re = re_vals[x];
+                let im = im_vals[y];
+                out.insert(ComplexDyadic::new(re, im));
+            }
+        }
+    }
+
+    out
+}

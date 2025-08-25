@@ -1,5 +1,5 @@
 use landau::covering_grids::{
-    create_covering_grid, grid_approx_with_edge, unit_disk_n, unit_disk_n_boundary
+    covering_grid_bitmap, create_covering_grid, extreme_points, grid_approx_with_edge, unit_disk_n, unit_disk_n_boundary
 };
 use landau::dyadic::{ComplexDyadic, Dyadic};
 use landau::plot::{plot_covering_grid, plot_set};
@@ -8,7 +8,7 @@ use landau::holomorphic::{
     BoundingSequence, ComplexFunction, ExpansionCoefficients,
 };
 use landau::psi::{generate_all_words, psi_infinity, t_vector, m_vec, generate_word};
-use landau::edt::{edt_1d_squared, edt_2d_squared, print_grid, landau_l_with_edt_from_complex_set} ;
+use landau::edt::{edt_1d_squared, edt_2d_squared, landau_l_via_edt_from_bitmap, landau_l_with_edt_from_complex_set, print_grid} ;
 
 use std::vec;
 use std::time::{Duration, Instant};
@@ -48,8 +48,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- sequences used consistently everywhere ---
     // Use the same m_seq & t_seq for the search and the final plot.
     // (Here I keep your small hand-picked m_seq; swap for m_vec(N) if you want.)
-    let m_seq = vec![Dyadic::new(1, -1), Dyadic::new(1, -1), Dyadic::new(1, -2), Dyadic::new(1, -3), Dyadic::new(1, -3)];
-    // let m_seq = m_vec(15) ;
+    // let m_seq = vec![Dyadic::new(1, -1), Dyadic::new(1, -1), Dyadic::new(1, -2), Dyadic::new(1, -3), Dyadic::new(1, -3)];
+    let m_seq = m_vec(15) ;
     let t_seq: Vec<usize> = t_vector(64); // dispatcher; make it long enough
 
     // --- precompute the domain sample once ---
@@ -62,8 +62,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Reuse buffers across iterations
     let mut img: Vec<ComplexDyadic> = Vec::with_capacity(domain.len());
-
-    for i  in 0..1000 {
+    //let all_8 = generate_all_words(1) ;
+    for i  in 0..10 {
         // let t1 = Instant::now();
 
         let word = generate_word(30);
@@ -90,12 +90,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // covering grid of the image (ε/4, δ)  — ensure this matches your function’s arg order
         // let t3: Instant = Instant::now();
 
-        let grid = create_covering_grid(&img, eps_over_4, delta);
+        // let grid = create_covering_grid(&img, eps_over_4, delta);
         // let dt_3 = t3.elapsed() ;
         // println!("time spent creating grid: {}", ms(dt_3)) ;
+
+        // let t5: Instant = Instant::now();
+        let grid_bitmap = covering_grid_bitmap(&img, eps_over_4, delta);
+        // let dt_5 = t5.elapsed() ;
+        // println!("time spent creating grid: {}", ms(dt_5)) ;
         // linear-time Landau l via EDT
         // let t4: Instant = Instant::now();
-        let l_val = landau_l_with_edt_from_complex_set(&grid, delta);
+        let l_val = landau_l_via_edt_from_bitmap(&grid_bitmap, delta);
+        // let l_val = landau_l_with_edt_from_complex_set(&grid, delta);
         // let dt_4 = t4.elapsed() ;
         // println!("time spent edt: {}", ms(dt_4)) ;
         if l_val < best_l {
@@ -105,6 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("min word = {:?}\nmin approx = {}", best_word, best_l);
+    // best_word = vec![1, 1, 1, 1, 1, 1] ;
 
     // --- render/plot the best one ---
     let coeffs = psi_infinity(&m_seq, &t_seq, &best_word);
@@ -113,14 +120,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ExpansionCoefficients::new(coeffs.clone()),
     );
     let f = fprime.antiderivative();
-
+    for z in &f.expansion_coefficients.vector {
+        println!("{}+{}i", z.re.to_f64(), z.im.to_f64())
+    }
     img.clear();
     for &z in &domain {
         img.push(f.eval(z));
     }
+    // for &z in &img {
+    //     println!("{:?}", z) 
+    // }
     let grid = create_covering_grid(&img, eps_over_4, delta);
     plot_covering_grid(&grid, "min_grid.png");
-
+    let ext = extreme_points(&img) ;
+    println!("{:?}", ext) ;
+    plot_set(&img, "min_image.png") ;
     let l_check = landau_l_with_edt_from_complex_set(&grid, delta);
     println!("l(best) = {}", l_check);
 
