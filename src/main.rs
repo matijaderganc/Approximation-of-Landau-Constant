@@ -1,16 +1,24 @@
-use landau::covering_grids::{
-    self, create_covering_grid, extreme_points, grid_approx, grid_complement, unit_disk_n,
-};
-use landau::dyadic::{psi, ComplexDyadic, Dyadic, Interval};
-use landau::plot::{self, plot_covering_grid, plot_set};
+use std::collections::LinkedList;
 
-use landau::holomorphic::{
-    comp_vec_to_sequence, vec_to_sequence, BoundingSequence, ComplexFunction, ExpansionCoefficients,
+use landau::covering_grids::{
+    self,
+    create_covering_grid,
+    extreme_points,
+    grid_approx,
+    grid_complement,
+    unit_disk_n,
 };
+use landau::dyadic::{ComplexDyadic, Dyadic, Interval, psi};
+use landau::holomorphic::{
+    BoundingSequence,
+    ComplexFunction,
+    ExpansionCoefficients,
+    comp_vec_to_sequence,
+    vec_to_sequence,
+};
+use landau::plot::{self, plot_covering_grid, plot_set};
 use landau::psi::{generate_all_words, generate_word, mu_first, mu_second, psi_infinity};
 use plotters::prelude::*;
-
-use std::collections::LinkedList;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let x = Dyadic::new(12, -2);
@@ -31,7 +39,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         BoundingSequence::new(m_seq),
         ExpansionCoefficients::new(holo),
     );
-    println!("{}", f.eval(ComplexDyadic::new(x.clone(), x.clone())));
+    println!(
+        "{}",
+        f.eval(ComplexDyadic::new(x.clone(), x.clone()))
+    );
     let mut points2 = Vec::new();
     for x in &points1 {
         points2.push(f.eval(*x))
@@ -76,6 +87,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 // println!("{}", mu_first(&2.0, &x)) ;
 // println!("{}", mu_second(&2.0, &x))
 
+
+// Test to ensure basic operation and functions perform properly. More test can be added as needed.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,10 +134,11 @@ mod tests {
             ExpansionCoefficients::new(vec![x.clone(), x.clone(), x.clone()]),
         );
         assert_eq!(
-            f.eval(ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::zero())),
+            f.eval(ComplexDyadic::new(
+                Dyadic::new(1, 0),
+                Dyadic::zero()
+            )),
             ComplexDyadic::new(Dyadic::new(3, 0), Dyadic::zero())
         );
     }
-
-    // Implement test for derrivative of complex functions
 }

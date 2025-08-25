@@ -224,8 +224,6 @@ impl ComplexDyadic {
         if power == 0 {
             return ComplexDyadic::one();
         } else if power < 0 {
-            // If you want to support negative powers, handle here.
-            // For example, use self.inverse().powi(-power)
             unimplemented!("Negative powers not implemented");
         }
 
@@ -254,7 +252,7 @@ impl ComplexDyadic {
     pub fn absolute_value(self) -> f64 {
         let re = self.re.powi(2);
         let im = self.im.powi(2);
-        return (re.to_f64() + im.to_f64()).powf(0.5);
+        (re.to_f64() + im.to_f64()).powf(0.5)
     }
 }
 
