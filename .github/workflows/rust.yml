@@ -1,28 +1,30 @@
-name: Rust CI
+name: CI
 
 on:
   push:
-    branches:
-      - main  # Trigger workflow on pushes to the `main` branch
+    branches: [ main ]
   pull_request:
-    branches:
-      - main  # Trigger workflow on pull requests targeting `main`
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # Define the environment
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-    - uses: dtolnay/rust-toolchain@stable
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up Rust
-      uses: actions/setup-rust@v1
-      with:
-        rust-version: stable  # You can specify the version you want (e.g., stable)
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        # with:
+        #   components: clippy,rustfmt   # uncomment if you need these
 
-    - name: Install dependencies
-      run: cargo build --release  # Run this to install dependencies
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
 
-    - name: Run tests
-      run: cargo test --verbose  # This will run your tests
+      - name: Build
+        run: cargo build --release
+
+      - name: Test
+        run: cargo test --verbose
+
