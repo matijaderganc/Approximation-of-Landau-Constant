@@ -81,6 +81,62 @@ impl ExpansionCoefficients {
     pub fn new(vector: Vec<ComplexDyadic>) -> ExpansionCoefficients {
         ExpansionCoefficients { vector }
     }
+
+    /// f'(z) where f(z) = Σ c_k z^k
+    pub fn derivative(&self) -> ExpansionCoefficients {
+        let n = self.vector.len();
+        if n <= 1 {
+            return ExpansionCoefficients {
+                vector: vec![ComplexDyadic::zero()],
+            };
+        }
+
+        let mut out = Vec::with_capacity(n - 1);
+        for k in 1..n {
+            let factor = ComplexDyadic::from_i64(k as i64);
+            out.push(self.vector[k].clone() * factor);
+        }
+
+        ExpansionCoefficients { vector: out }
+    }
+
+    /// ∫f(z)dz with constant of integration = 0
+    pub fn antiderivative(&self, bits: u32) -> ExpansionCoefficients {
+        let n = self.vector.len();
+        let mut out = Vec::with_capacity(n + 1);
+
+        // constant term = 0
+        out.push(ComplexDyadic::zero());
+
+        for k in 0..n {
+            out.push(self.vector[k].clone().div_i64((k as i64) + 1, bits));
+        }
+
+        ExpansionCoefficients { vector: out }
+    }
+
+    pub fn eval(&self, z: &ComplexDyadic) -> ComplexDyadic {
+        let mut acc = ComplexDyadic::zero();
+        for coeff in self.vector.iter().rev() {
+            acc = acc * z.clone() + coeff.clone();
+        }
+        acc
+    }
+
+    pub fn mu_prime(&self, r: f64) -> f64 {
+        self.vector.iter().enumerate().skip(1) // skip constant term
+            .map(|(n, c)| (n as f64) * c.abs() * r.powi((n-1) as i32))
+            .sum()
+    }
+
+    pub fn mu_double_prime(&self, r: f64) -> f64 {
+        self.vector
+            .iter()
+            .enumerate()
+            .skip(2)
+            .map(|(n, c)| (n as f64) * (n - 1) as f64 * c.abs() * r.powi((n - 2) as i32))
+            .sum()
+    }
 }
 
 // A given holomorphic function consists of a bounding sequence (type BoundingSequence) and a bounded sequence, which represents the coefficients in its expansion (type ExpansionCoefficients)
