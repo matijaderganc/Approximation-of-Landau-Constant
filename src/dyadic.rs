@@ -1,17 +1,13 @@
 // use std::intrinsics::sqrtf64;
 use std::cmp::Ordering;
 use std::collections::LinkedList;
-//use num_complex::Complex;
 use std::fmt::{self, UpperExp, write};
 use std::hash::Hash;
-use std::io::Empty;
 use std::ops::{Add, Div, Mul, Sub};
-
-use plotters::element::ComposedElement; //division not yet implemented
 
 #[derive(Debug, Clone, Copy)]
 
-// Define dyadic type
+// Define dyadic type as numerator * 2 ^ exponent
 pub struct Dyadic {
     pub numerator: i128,
     pub exponent: i32,
@@ -24,10 +20,13 @@ impl Dyadic {
             exponent: exp,
         }
     }
+
+    // used to get a float from a dyadic number
     pub fn to_f64(&self) -> f64 {
         (self.numerator as f64) * (2.0f64).powi(self.exponent)
     }
-    // This is used to determine if a number is zero, which need to be checked before division
+
+    // This is used to determine if a number is zero, which need to be checked before division. Also helpful when testing
     pub fn zero() -> Dyadic {
         Dyadic {
             numerator: 0,
@@ -35,6 +34,7 @@ impl Dyadic {
         }
     }
 
+    // Create a Dyadic with integer value
     pub fn from_i64(n: i64) -> Dyadic {
         Dyadic {
             numerator: n as i128,
@@ -42,6 +42,7 @@ impl Dyadic {
         }
     }
 
+    // Reduce a dyadic number by dividing numerator and increasing exponent. Two dyadics which are equal when reduced, are viewed as the same dyadics, forming an equivalence class. This should also be called after every operation to ensure we keep the numerator as small as possible.
     pub fn reduce(self) -> Dyadic {
         let mut numerator = self.numerator;
         let mut exponent = self.exponent;
@@ -52,6 +53,7 @@ impl Dyadic {
         Dyadic::new(numerator, exponent)
     }
 
+    // Fast power implementation to reduce computational time
     pub fn powi(self, power: i32) -> Self {
         if power == 0 {
             return Dyadic::new(1, 0);
@@ -77,6 +79,7 @@ impl Dyadic {
         }
     }
 
+    // Returns a dyadic number which approximates x while setting the maximum exponent
     pub fn approximate(x: f64, max_exponent: u32) -> Dyadic {
         let mut best = Dyadic {
             numerator: 0,
@@ -102,8 +105,9 @@ impl Dyadic {
         best
     }
 
+    // Division where we consider our precision
     pub fn div_with_precision(&self, denom: Dyadic, bits: u32) -> Dyadic {
-        assert!(denom.numerator != 0, "division by zero dyadic");
+        assert!(denom.numerator != 0, "division by zero dyadic"); // Error
 
         // integer scaling: n_a * 2^bits
         let scaled = self.numerator << bits;
@@ -195,7 +199,7 @@ impl Div for Dyadic {
         }
 
         let result_f64 = self.to_f64() / other.to_f64();
-        Dyadic::approximate(result_f64, 30).reduce() // adjust precision as needed
+        Dyadic::approximate(result_f64, 30).reduce() // adjust precision as needed. This may also be a bad way of doing this to be honest
     }
 }
 
@@ -225,20 +229,6 @@ impl Hash for Dyadic {
     }
 }
 
-pub fn add_vec(a: &Vec<Dyadic>, b: &Vec<Dyadic>) -> Vec<Dyadic> {
-    let len = a.len().max(b.len()); // Use the length of the longer vector
-    let mut result = Vec::with_capacity(len);
-
-    for i in 0..len {
-        // If index i is within bounds of self, use the value; otherwise, use Dyadic(0)
-        let val_self = if i < a.len() { a[i] } else { Dyadic::zero() };
-        let val_other = if i < b.len() { b[i] } else { Dyadic::zero() };
-        result.push(val_self + val_other);
-    }
-
-    result
-}
-
 // Define type ComplexDyadic
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ComplexDyadic {
@@ -250,13 +240,15 @@ impl ComplexDyadic {
     pub fn new(re: Dyadic, im: Dyadic) -> ComplexDyadic {
         ComplexDyadic { re, im }
     }
+
+    // Absolute value of complex dyadic number can be calculated by converting to f64
     pub fn abs(&self) -> f64 {
         let real = self.re.to_f64();
         let im = self.im.to_f64();
-        return (real * real + im * im).sqrt();
+        (real * real + im * im).sqrt()
     }
 
-    // Add fast powering
+    // Add fast powering for better performance
     pub fn powi(self, power: i32) -> Self {
         if power == 0 {
             return ComplexDyadic::one();
@@ -292,6 +284,7 @@ impl ComplexDyadic {
         (re.to_f64() + im.to_f64()).powf(0.5)
     }
 
+    // Create new ComplexDyadic from integer, very useful when operating with functions
     pub fn from_i64(n: i64) -> Self {
         let d = Dyadic::from_i64(n);
         Self {
@@ -299,7 +292,7 @@ impl ComplexDyadic {
             im: Dyadic::zero(),
         }
     }
-    /// Divide by a small integer with dyadic precision control (applies to both parts).
+    // Divide by a small integer with dyadic precision control
     pub fn div_i64(self, n: i64, bits: u32) -> Self {
         let denom = Dyadic::from_i64(n);
         Self {
@@ -374,6 +367,22 @@ impl Div for ComplexDyadic {
     }
 }
 
+// Adding to vectors of dyadic numbers which is then used when operating with BoundingSequences and ExpansionCoefficients
+pub fn add_vec(a: &Vec<Dyadic>, b: &Vec<Dyadic>) -> Vec<Dyadic> {
+    let len = a.len().max(b.len()); // Use the length of the longer vector
+    let mut result = Vec::with_capacity(len);
+
+    for i in 0..len {
+        // If index i is within bounds of self, use the value; otherwise, use Dyadic(0)
+        let val_self = if i < a.len() { a[i] } else { Dyadic::zero() };
+        let val_other = if i < b.len() { b[i] } else { Dyadic::zero() };
+        result.push(val_self + val_other);
+    }
+
+    result
+}
+
+// Adding and subtracting complex vectors
 pub fn add_complex_vec(a: &Vec<ComplexDyadic>, b: &Vec<ComplexDyadic>) -> Vec<ComplexDyadic> {
     let len = a.len().max(b.len()); // Use the length of the longer vector
     let mut result = Vec::with_capacity(len);
@@ -447,7 +456,7 @@ impl Interval {
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
-// Define alphabet of words
+// Define alphabet of words. This may not be needed anymore
 enum Letter {
     On,
     Two,
@@ -455,9 +464,9 @@ enum Letter {
     Four,
 }
 
+// This may not be needed anymore
 struct Word {
     length: i32,
-    // Luka : Words could be lists of vectors (Luka probably meant or)
 }
 
 // Implement display methods for defined types
@@ -497,6 +506,7 @@ impl fmt::Display for ComplexDyadic {
         }
     }
 }
+
 
 fn split(rect: Interval, n: u8) -> Interval {
     match rect {
