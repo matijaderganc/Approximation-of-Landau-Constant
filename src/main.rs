@@ -41,11 +41,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     println!(
         "{}",
-        f.eval(ComplexDyadic::new(x.clone(), x.clone()))
+        f.eval(&ComplexDyadic::new(x.clone(), x.clone()))
     );
     let mut points2 = Vec::new();
     for x in &points1 {
-        points2.push(f.eval(*x))
+        points2.push(f.eval(&x))
     }
     let grid = create_covering_grid(&points2, Dyadic::new(1, -2), Dyadic::new(1, -4));
     plot_set(&points2, "image2.png");
@@ -134,7 +134,7 @@ mod tests {
             ExpansionCoefficients::new(vec![x.clone(), x.clone(), x.clone()]),
         );
         assert_eq!(
-            f.eval(ComplexDyadic::new(
+            f.eval(&ComplexDyadic::new(
                 Dyadic::new(1, 0),
                 Dyadic::zero()
             )),
