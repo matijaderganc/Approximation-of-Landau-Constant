@@ -116,7 +116,7 @@ impl ExpansionCoefficients {
         ExpansionCoefficients { vector: out }
     }
 
-    // Evaluate the function, represented with its Taylor expansion in a given point
+    // Evaluate the function, represented with its Taylor expansion in a given point using Horners algorithm
     pub fn eval(&self, z: &ComplexDyadic) -> ComplexDyadic {
         let mut acc = ComplexDyadic::zero();
         for coeff in self.vector.iter().rev() {
@@ -169,14 +169,12 @@ impl ComplexFunction {
         }
     }
 
-    pub fn eval(&self, z: ComplexDyadic) -> ComplexDyadic {
-        let mut sum = ComplexDyadic::zero();
-        for i in 0..=self.expansion_coefficients.vector.len() - 1 {
-            // println!("{}, {}", sum, i);
-            sum = sum + self.expansion_coefficients.vector[i] * (z.powi((i + 1) as i32));
-            // println!("{}", sum)
+    pub fn eval(&self, z: &ComplexDyadic) -> ComplexDyadic {
+        let mut acc = ComplexDyadic::zero();
+        for coeff in self.expansion_coefficients.vector.iter().rev() {
+            acc = acc * z.clone() + coeff.clone();
         }
-        sum
+        acc
     }
 
     // This could need to be checked if it works properly.
