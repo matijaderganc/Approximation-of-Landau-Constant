@@ -110,11 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Dyadic::new(1, -3),
         Dyadic::new(1, -3),
     ];
-    let m_seq2 = vec![
-        Dyadic::new(1, 2),
-        Dyadic::new(1, 2),
-        Dyadic::new(1, 2)
-    ];
+    let m_seq2 = m_vec(5) ;
     let coeffs = psi_infinity(&m_seq2, &t_seq1, &best_word_length);
     let fprime = ComplexFunction::new(
         BoundingSequence::new(m_seq1.clone()),
@@ -138,10 +134,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Dyadic::new(1, 0), 
     ];
     // let _top3 = sweep_mseq_len3(&possible_m, 6, delta, -7).await;
-    let r = Dyadic::new(1,0) - Dyadic::new(1,-4);
-    let (r_hat, rho) = certify_r_hat_rho(r, &fprime, 40);
-
-    println!("{:?}, {:?}", r_hat.to_f64(), rho.to_f64()) ;
+    let r = Dyadic::new(1,0) - Dyadic::new(1,-6);
+    let (r_hat, rho) = certify_r_hat_rho(r, &fprime, 500, 20, 20);
+    let eps = calculate_epsilon(r.to_f64(), r_hat, rho);
+    println!("{:?}, {:?}, {:?}", r_hat.to_f64(), rho.to_f64(), eps) ;
 
     Ok(())
 }

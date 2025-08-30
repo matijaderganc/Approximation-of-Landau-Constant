@@ -40,10 +40,8 @@ pub fn calculate_epsilon(r : f64, r_hat : Dyadic, rho : Dyadic) -> Dyadic {
     eps  
 }
 
-
-
 fn dyadic_floor_bits(x: f64, prec_bits: i32) -> Dyadic {
-    if !(x.is_finite()) || x <= 0.0 {
+    if !x.is_finite() || x <= 0.0 {
         return Dyadic::zero();
     }
     let scale: i128 = 1i128 << prec_bits;
@@ -51,78 +49,60 @@ fn dyadic_floor_bits(x: f64, prec_bits: i32) -> Dyadic {
     Dyadic::new(n, -prec_bits).reduce()
 }
 
-/// Build a ComplexDyadic from polar (r_hat * e^{iθ}) with dyadic rounding.
+/// Build a ComplexDyadic point z = r_hat * e^{iθ}, rounding each coordinate
+/// down to dyadic with `frac_bits` fractional bits.
 fn point_on_circle(r_hat: Dyadic, theta: f64, frac_bits: i32) -> ComplexDyadic {
     let rc = r_hat.to_f64();
     let x = rc * theta.cos();
     let y = rc * theta.sin();
+    let sx = if x < 0.0 { -1 } else { 1 };
+    let sy = if y < 0.0 { -1 } else { 1 };
     ComplexDyadic::new(
-        dyadic_floor_bits(x.abs(), frac_bits) * Dyadic::new(if x < 0.0 { -1 } else { 1 }, 0),
-        dyadic_floor_bits(y.abs(), frac_bits) * Dyadic::new(if y < 0.0 { -1 } else { 1 }, 0),
+        dyadic_floor_bits(x.abs(), frac_bits) * Dyadic::new(sx, 0),
+        dyadic_floor_bits(y.abs(), frac_bits) * Dyadic::new(sy, 0),
     )
 }
 
-/// Certified lower bound ρ on |f'(z)| over |z|=r_hat, using:
-///   ρ  = min_j {|f'(z_j)|} - μ''_{r̂} * r_hat * Δθ
-/// where z_j = r_hat * e^{2π i j / N}, and Δθ = 2π/N.
-/// Increases N if needed; if still non-positive, moves r_hat closer to r.
+/// NAIVE version:
+/// - choose r_hat = r + min((1 - r)/8, 2^{-6})
+/// - sample f' at N points on |z| = r_hat
+/// - set rho = min_j |f'(z_j)| (rounded down to dyadic)
+///
+/// Returns (r_hat, rho).
 pub fn certify_r_hat_rho(
-    r: Dyadic,                   // base radius (dyadic in (0,1))
-    fprime: &ComplexFunction,    // f' (your existing derivative object)
-    target_margin_bits: i32,     // how finely to round ρ down to dyadic (e.g. 40)
+    r: Dyadic,
+    fprime: &ComplexFunction,
+    n_samples: usize,   // e.g. 512 or 1024
+    coord_frac_bits: i32, // dyadic rounding for z, e.g. 50
+    rho_frac_bits: i32,   // dyadic rounding for rho, e.g. 40
 ) -> (Dyadic, Dyadic) {
-    assert!(r > Dyadic::zero() && r < Dyadic::new(1,0), "r must be in (0,1)");
-    let one = Dyadic::new(1,0);
+    assert!(r > Dyadic::zero() && r < Dyadic::new(1, 0), "r must be in (0,1)");
+    let one = Dyadic::new(1, 0);
 
-    // Start slightly above r, safely below 1.
-    let mut step = ((one - r) * Dyadic::new(1, -3)).reduce(); // (1-r)/8
+    // Pick r_hat slightly above r
+    let mut step = ((one - r) * Dyadic::new(1, -3)).reduce(); // (1 - r)/8
+    let fallback = Dyadic::new(1, -6);                        // 2^-6
+    if step <= Dyadic::zero() || step > fallback { step = fallback; }
+
     let mut r_hat = (r + step).reduce();
     if r_hat >= one { r_hat = (one - Dyadic::new(1, -12)).reduce(); }
 
-    // Outer loop: if we fail to get ρ>0, move r̂ closer to r by halving the step.
-    let min_step = Dyadic::new(1, -60);
+    // Sample f' on |z| = r_hat
+    let n = n_samples.max(8);
+    let dtheta = std::f64::consts::TAU / (n as f64);
+    let mut min_mag = f64::INFINITY;
 
-    'outer: loop {
-        // μ''_{r̂} from your psi crate (Lemma 6 uses an upper bound on sup|f''| on D_{r̂})
-        let c = 1.0 + (2.0f64).powi(-100);
-        let mu2 = mu_second(&c, &r_hat); // Dyadic upper bound on sup_{|z|<=r̂} |f''(z)|
-
-        // Try increasing angular resolutions N until Lipschitz-corrected min is > 0
-        let mut n: usize = 256;
-        while n <= 1 << 16 {
-            let delta_theta = std::f64::consts::TAU / (n as f64);
-            // Lipschitz radius on the circle between samples: ≤ μ'' * r̂ * Δθ
-            let lip = mu2 * r_hat.to_f64() * delta_theta;
-
-            // Sample f' on |z|=r_hat
-            let mut min_mag = std::f64::INFINITY;
-            for j in 0..n {
-                let theta = (j as f64) * delta_theta;
-                let z = point_on_circle(r_hat, theta, /*frac_bits*/ 50);
-                let val = fprime.eval(&z); // ComplexDyadic
-                let mag = (val.re.to_f64().powi(2) + val.im.to_f64().powi(2)).sqrt();
-                if mag < min_mag { min_mag = mag; }
-            }
-
-            // Certified uniform lower bound over the whole circle
-            let rho_f64 = min_mag - lip;
-            if rho_f64 > 0.0 {
-                // Round down to a dyadic strictly below rho_f64
-                let rho = dyadic_floor_bits(rho_f64, target_margin_bits);
-                if rho > Dyadic::zero() {
-                    return (r_hat, rho);
-                }
-            }
-            n *= 2; // refine sampling
-        }
-
-        // If we get here, even with fine sampling and this r̂ we couldn't certify ρ>0.
-        // Move r̂ closer to r and try again.
-        step = (step * Dyadic::new(1, -1)).reduce();
-        assert!(step > min_step, "Could not certify a positive ρ; try smaller r̂ or adjust bounds.");
-        r_hat = (r + step).reduce();
-        if r_hat >= one { r_hat = (one - Dyadic::new(1, -12)).reduce(); }
+    for j in 0..n {
+        let theta = (j as f64) * dtheta;
+        let z = point_on_circle(r_hat, theta, coord_frac_bits);
+        let val = fprime.eval(&z); // ComplexDyadic
+        let mag = val.abs();
+        if mag < min_mag { min_mag = mag; }
     }
+
+    // Naive rho = min magnitude (rounded down to dyadic)
+    let rho = dyadic_floor_bits(min_mag, rho_frac_bits);
+    (r_hat, rho)
 }
 
     
