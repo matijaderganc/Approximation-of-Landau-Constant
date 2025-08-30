@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::f64;
 use crate::dyadic::{ComplexDyadic, Dyadic};
 use crate::covering_grids::{GridBitmap} ;
-use std::collections::{HashMap};
 
 // Felzenszwalb & Huttenlocher (2004), "Distance Transforms of Sampled Functions"
 // Given f[q] where f[p]=0 for "sources" and f[p]=∞ elsewhere, returns

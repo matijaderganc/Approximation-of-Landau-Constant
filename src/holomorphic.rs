@@ -5,9 +5,8 @@
 // - do some basic testing to see function return expected values
 
 // Call the Dyadic type from dyadic.rs:
-use std::ops::{Add, Bound, Div, Mul, Sub}; //division not yet implemented
-use std::sync::Arc;
-use std::vec;
+use std::ops::{Add, Sub}; //division not yet implemented
+
 
 use crate::dyadic::{ComplexDyadic, Dyadic, add_complex_vec, add_vec, sub_complex_vec};
 
