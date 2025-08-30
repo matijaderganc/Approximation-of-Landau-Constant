@@ -245,7 +245,7 @@ mod tests {
             ExpansionCoefficients::new(vec![x.clone(), x.clone(), x.clone()]),
         );
         assert_eq!(
-            f.eval(ComplexDyadic::new(
+            f.eval(&ComplexDyadic::new(
                 Dyadic::new(1, 0),
                 Dyadic::zero()
             )),

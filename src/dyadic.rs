@@ -1,17 +1,13 @@
 // use std::intrinsics::sqrtf64;
 use std::cmp::Ordering;
 use std::collections::LinkedList;
-//use num_complex::Complex;
 use std::fmt::{self, UpperExp, write};
 use std::hash::Hash;
-use std::io::Empty;
 use std::ops::{Add, Div, Mul, Sub};
-
-use plotters::element::ComposedElement; //division not yet implemented
 
 #[derive(Debug, Clone, Copy)]
 
-// Define dyadic type
+// Define dyadic type as numerator * 2 ^ exponent
 pub struct Dyadic {
     pub numerator: i128,
     pub exponent: i32,
@@ -24,10 +20,13 @@ impl Dyadic {
             exponent: exp,
         }
     }
+
+    // used to get a float from a dyadic number
     pub fn to_f64(&self) -> f64 {
         (self.numerator as f64) * (2.0f64).powi(self.exponent)
     }
-    // This is used to determine if a number is zero, which need to be checked before division
+
+    // This is used to determine if a number is zero, which need to be checked before division. Also helpful when testing
     pub fn zero() -> Dyadic {
         Dyadic {
             numerator: 0,
@@ -35,6 +34,15 @@ impl Dyadic {
         }
     }
 
+    // Create a Dyadic with integer value
+    pub fn from_i64(n: i64) -> Dyadic {
+        Dyadic {
+            numerator: n as i128,
+            exponent: 0,
+        }
+    }
+
+    // Reduce a dyadic number by dividing numerator and increasing exponent. Two dyadics which are equal when reduced, are viewed as the same dyadics, forming an equivalence class. This should also be called after every operation to ensure we keep the numerator as small as possible.
     pub fn reduce(self) -> Dyadic {
         if self.numerator == 0 { return Dyadic::zero(); }
         let mut n = self.numerator;
@@ -43,9 +51,10 @@ impl Dyadic {
             n /= 2;
             e += 1;
         }
-        Dyadic::new(n, e)
+        Dyadic::new(numerator, exponent)
     }
 
+    // Fast power implementation to reduce computational time
     pub fn powi(self, power: i32) -> Self {
         if power == 0 {
             return Dyadic::new(1, 0);
@@ -71,6 +80,7 @@ impl Dyadic {
         }
     }
 
+    // Returns a dyadic number which approximates x while setting the maximum exponent
     pub fn approximate(x: f64, max_exponent: u32) -> Dyadic {
         let mut best = Dyadic {
             numerator: 0,
@@ -94,6 +104,37 @@ impl Dyadic {
         }
 
         best
+    }
+
+    // Division where we consider our precision
+    pub fn div_with_precision(&self, denom: Dyadic, bits: u32) -> Dyadic {
+        assert!(denom.numerator != 0, "division by zero dyadic"); // Error
+
+        // integer scaling: n_a * 2^bits
+        let scaled = self.numerator << bits;
+
+        // rounded integer division (nearest, ties to even)
+        let div = {
+            let num = scaled;
+            let den = denom.numerator;
+            let q = num / den;
+            let r = num % den;
+            // rounding decision
+            if 2 * r.abs() > den.abs() {
+                q + q.signum()
+            } else if 2 * r.abs() == den.abs() && (q & 1) != 0 {
+                q + q.signum()
+            } else {
+                q
+            }
+        };
+
+        // exponent: (k_a - k_b - bits)
+        Dyadic {
+            numerator: div,
+            exponent: self.exponent - denom.exponent - (bits as i32),
+        }
+        .reduce()
     }
 }
 
@@ -159,7 +200,7 @@ impl Div for Dyadic {
         }
 
         let result_f64 = self.to_f64() / other.to_f64();
-        Dyadic::approximate(result_f64, 30).reduce() // adjust precision as needed
+        Dyadic::approximate(result_f64, 30).reduce() // adjust precision as needed. This may also be a bad way of doing this to be honest
     }
 }
 
@@ -189,20 +230,6 @@ impl Hash for Dyadic {
     }
 }
 
-pub fn add_vec(a: &Vec<Dyadic>, b: &Vec<Dyadic>) -> Vec<Dyadic> {
-    let len = a.len().max(b.len()); // Use the length of the longer vector
-    let mut result = Vec::with_capacity(len);
-
-    for i in 0..len {
-        // If index i is within bounds of self, use the value; otherwise, use Dyadic(0)
-        let val_self = if i < a.len() { a[i] } else { Dyadic::zero() };
-        let val_other = if i < b.len() { b[i] } else { Dyadic::zero() };
-        result.push(val_self + val_other);
-    }
-
-    result
-}
-
 // Define type ComplexDyadic
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ComplexDyadic {
@@ -214,12 +241,15 @@ impl ComplexDyadic {
     pub fn new(re: Dyadic, im: Dyadic) -> ComplexDyadic {
         ComplexDyadic { re, im }
     }
+
+    // Absolute value of complex dyadic number can be calculated by converting to f64
     pub fn abs(&self) -> f64 {
         let real = self.re.to_f64();
         let im = self.im.to_f64();
-        return (real * real + im * im).sqrt();
+        (real * real + im * im).sqrt()
     }
-    // Add fast powering
+
+    // Add fast powering for better performance
     pub fn powi(self, power: i32) -> Self {
         if power == 0 {
             return ComplexDyadic::one();
@@ -253,6 +283,47 @@ impl ComplexDyadic {
         let re = self.re.powi(2);
         let im = self.im.powi(2);
         (re.to_f64() + im.to_f64()).powf(0.5)
+    }
+
+    // Create new ComplexDyadic from integer, very useful when operating with functions
+    pub fn from_i64(n: i64) -> Self {
+        let d = Dyadic::from_i64(n);
+        Self {
+            re: d.clone(),
+            im: Dyadic::zero(),
+        }
+    }
+    // Divide by a small integer with dyadic precision control
+    pub fn div_i64(self, n: i64, bits: u32) -> Self {
+        let denom = Dyadic::from_i64(n);
+        Self {
+            re: self.re.div_with_precision(denom.clone(), bits),
+            im: self.im.div_with_precision(denom, bits),
+        }
+    }
+
+    pub fn div_with_precision(&self, other: ComplexDyadic, bits: u32) -> ComplexDyadic {
+        // denominator = c^2 + d^2
+        let denom = other.re.clone() * other.re.clone() + other.im.clone() * other.im.clone();
+
+        assert!(
+            denom.numerator != 0,
+            "division by zero complex dyadic"
+        );
+
+        // real = (ac + bd) / (c^2 + d^2)
+        let num_re = self.re.clone() * other.re.clone() + self.im.clone() * other.im.clone();
+        let re = num_re.div_with_precision(denom.clone(), bits);
+
+        // imag = (bc - ad) / (c^2 + d^2)
+        let num_im = self.im.clone() * other.re.clone() - self.re.clone() * other.im.clone();
+        let im = num_im.div_with_precision(denom, bits);
+
+        ComplexDyadic { re, im }
+    }
+
+    pub fn to_f64(&self) -> (f64, f64) {
+        (self.re.to_f64(), self.im.to_f64())
     }
 }
 
@@ -296,6 +367,22 @@ impl Div for ComplexDyadic {
     }
 }
 
+// Adding to vectors of dyadic numbers which is then used when operating with BoundingSequences and ExpansionCoefficients
+pub fn add_vec(a: &Vec<Dyadic>, b: &Vec<Dyadic>) -> Vec<Dyadic> {
+    let len = a.len().max(b.len()); // Use the length of the longer vector
+    let mut result = Vec::with_capacity(len);
+
+    for i in 0..len {
+        // If index i is within bounds of self, use the value; otherwise, use Dyadic(0)
+        let val_self = if i < a.len() { a[i] } else { Dyadic::zero() };
+        let val_other = if i < b.len() { b[i] } else { Dyadic::zero() };
+        result.push(val_self + val_other);
+    }
+
+    result
+}
+
+// Adding and subtracting complex vectors
 pub fn add_complex_vec(a: &Vec<ComplexDyadic>, b: &Vec<ComplexDyadic>) -> Vec<ComplexDyadic> {
     let len = a.len().max(b.len()); // Use the length of the longer vector
     let mut result = Vec::with_capacity(len);
@@ -369,7 +456,7 @@ impl Interval {
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 
-// Define alphabet of words
+// Define alphabet of words. This may not be needed anymore
 enum Letter {
     On,
     Two,
@@ -377,9 +464,9 @@ enum Letter {
     Four,
 }
 
+// This may not be needed anymore
 struct Word {
     length: i32,
-    // Luka : Words could be lists of vectors (Luka probably meant or)
 }
 
 // Implement display methods for defined types
@@ -420,6 +507,7 @@ impl fmt::Display for ComplexDyadic {
     }
 }
 
+
 fn split(rect: Interval, n: u8) -> Interval {
     match rect {
         Interval::Empty => Interval::Empty,
@@ -445,5 +533,68 @@ pub fn psi(int1: Interval, lst: &LinkedList<u8>) -> Interval {
             split(int1, fst),
             &lst.iter().skip(1).cloned().collect(),
         ),
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::holomorphic::ExpansionCoefficients;
+
+    #[test]
+    fn test_div_with_precision_real() {
+        let a = Dyadic {
+            numerator: 3,
+            exponent: -5,
+        }; // 3 * 2^-5 = 3/32
+        let b = Dyadic {
+            numerator: 5,
+            exponent: -2,
+        }; // 5 * 2^-2 = 5/4
+        let q = a.div_with_precision(b, 30);
+
+        // Expected: (3/32) / (5/4) = 3/40 = 0.075
+        let approx = q.to_f64();
+        assert!((approx - 0.075).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_div_with_precision_complex() {
+        let a = ComplexDyadic {
+            re: Dyadic {
+                numerator: 3,
+                exponent: -5,
+            }, // 3/32
+            im: Dyadic {
+                numerator: 1,
+                exponent: -4,
+            }, // 1/16
+        };
+        let b = ComplexDyadic {
+            re: Dyadic {
+                numerator: 5,
+                exponent: -2,
+            }, // 5/4
+            im: Dyadic {
+                numerator: 1,
+                exponent: -3,
+            }, // 1/8
+        };
+        let q = a.div_with_precision(b, 40);
+        let (approx_re, approx_im) = q.to_f64();
+
+        let a_re = 3.0 / 32.0;
+        let a_im = 1.0 / 16.0;
+        let b_re = 5.0 / 4.0;
+        let b_im = 1.0 / 8.0;
+
+        let denom = b_re * b_re + b_im * b_im;
+        let ref_re = (a_re * b_re + a_im * b_im) / denom;
+        let ref_im = (a_im * b_re - a_re * b_im) / denom;
+        // ----------------------------------------------------------
+
+        assert!((approx_re - ref_re).abs() < 1e-9);
+        assert!((approx_im - ref_im).abs() < 1e-9);
     }
 }
