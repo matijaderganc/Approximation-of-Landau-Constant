@@ -51,7 +51,7 @@ impl Dyadic {
             n /= 2;
             e += 1;
         }
-        Dyadic::new(numerator, exponent)
+        Dyadic::new(n, e)
     }
 
     // Fast power implementation to reduce computational time

@@ -43,7 +43,7 @@ pub async fn calculate_for_length(
                 // Evaluate on domain
                 let mut img: Vec<ComplexDyadic> = Vec::with_capacity(domain.len());
                 for &z in domain.iter() {
-                    img.push(f.eval(z));
+                    img.push(f.eval(&z));
                 }
 
                 // EDT path (bitmap → Landau l)

@@ -5,3 +5,4 @@ pub mod covering_grids;
 pub mod plot ;
 pub mod edt ;
 pub mod evaluation ;
+pub mod corollary_2;

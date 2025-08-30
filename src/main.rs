@@ -10,6 +10,7 @@ use landau::holomorphic::{
 use landau::psi::{generate_all_words, psi_infinity, t_vector, m_vec, generate_word};
 use landau::edt::{landau_l_via_edt_from_bitmap, landau_l_with_edt_from_complex_set, print_grid} ;
 use landau::evaluation::{calculate_for_length, sweep_mseq_len3} ;
+use landau::corollary_2::{calculate_epsilon, certify_r_hat_rho};
 
 use std::vec;
 use std::time::{Duration, Instant};
@@ -60,7 +61,7 @@ pub async fn calculate_random(
                 // --- eval on domain ---
                 let mut img = Vec::with_capacity(domain.len());
                 for &z in domain.iter() {
-                    img.push(f.eval(z));
+                    img.push(f.eval(&z));
                 }
 
                 // --- EDT path you asked for ---
@@ -85,19 +86,21 @@ pub async fn calculate_random(
 }
 
 
+
+
 #[tokio::main(flavor = "multi_thread")] 
 
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let delta      = Dyadic::new(1, -7);    
     let m_seq = vec![
-        Dyadic::new(1, 2),
-        Dyadic::new(1, 2),
-        Dyadic::new(1, 2)
+        Dyadic::new(1, -2),
+        Dyadic::new(1, -2),
+        Dyadic::new(1, -2)
     ];
     // let (best_word_random, approx_random) = calculate_random(1000, 30, delta, -8).await ;
     // println!("best approx for random words is: {}, best word is : {:?}", approx_random, best_word_random) ;
-    let (best_word_length, approx_length) = calculate_for_length(6, delta, -7, m_seq).await ;
+    let (best_word_length, approx_length) = calculate_for_length(3, delta, -5, m_seq).await ;
     println!("best approx for all words with this length is: {}, best word is : {:?}", approx_length, best_word_length) ;
     let t_seq1 = t_vector(100);
     let m_seq1 = vec![
@@ -123,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let mut img = vec![] ;
     for &z in &unit_disk_n(-7) {
-        img.push(f.eval(z));
+        img.push(f.eval(&z));
     }
 
     plot_set(&img, "min_image.png") ;
@@ -133,12 +136,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let possible_m = vec![
         Dyadic::new(3, -1), 
         Dyadic::new(1, 0), 
-        Dyadic::new(1, -1), 
-        Dyadic::new(1, -2), 
-        Dyadic::new(1, -3), // 1/8
-        Dyadic::new(1, -4), // 1/16
     ];
-    let _top3 = sweep_mseq_len3(&possible_m, 6, delta, -7).await;
+    // let _top3 = sweep_mseq_len3(&possible_m, 6, delta, -7).await;
+    let r = Dyadic::new(1,0) - Dyadic::new(1,-4);
+    let (r_hat, rho) = certify_r_hat_rho(r, &fprime, 40);
+
+    println!("{:?}, {:?}", r_hat.to_f64(), rho.to_f64()) ;
+
     Ok(())
 }
 
@@ -251,5 +255,14 @@ mod tests {
             )),
             ComplexDyadic::new(Dyadic::new(3, 0), Dyadic::zero())
         );
+    }
+    #[test]
+    fn test_epsilon() {
+        let r = 0.95 ;
+        let r_hat = Dyadic::new(127, -7) ;
+        println!("{}", r_hat.to_f64());
+        let rho = Dyadic::new(1, -4);
+        let eps = calculate_epsilon(r, r_hat, rho);
+        assert_eq!(eps, Dyadic::new(1, -37));
     }
 }
