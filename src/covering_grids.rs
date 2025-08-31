@@ -24,13 +24,13 @@ pub fn unit_disk_n( n : i32) -> Vec<ComplexDyadic> { //could be improved, we che
     return points
 }
 // unit_disk_radius return a unit disk wiht radius r, and n determines how dense the inside of the disk is
-pub fn unit_disk_radius(n : i32, r : f64) -> Vec<ComplexDyadic>{
+pub fn unit_disk_radius(disk_accuracy : i32, r : f64) -> Vec<ComplexDyadic>{
     let mut points = Vec::new()  ;
-    let max = (2i128).pow(-n as u32) ;
+    let max = (2i128).pow(-disk_accuracy as u32) ;
     for real in -max..=max {
         for imaginary in -max..=max {
-            let re = Dyadic::new(real, n) ;
-            let im = Dyadic::new(imaginary, n) ;
+            let re = Dyadic::new(real, disk_accuracy) ;
+            let im = Dyadic::new(imaginary, disk_accuracy) ;
             let z = ComplexDyadic::new(re, im) ;
             if z.abs() <= r {
                 points.push(z)

@@ -9,7 +9,7 @@ use landau::holomorphic::{
 };
 use landau::psi::{generate_all_words, psi_infinity, t_vector, m_vec, generate_word};
 use landau::edt::{landau_l_via_edt_from_bitmap, landau_l_with_edt_from_complex_set, print_grid} ;
-use landau::evaluation::{calculate_for_length, sweep_mseq_len3} ;
+use landau::evaluation::{calculate_for_all_words_updated, calculate_for_length, calculate_for_word_updated, sweep_mseq_len3} ;
 use landau::corollary_2::{calculate_epsilon, certify_r_hat_rho};
 
 use std::vec;
@@ -104,8 +104,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("best approx for all words with this length is: {}, best word is : {:?}", approx_length, best_word_length) ;
     let t_seq1 = t_vector(100);
     let m_seq1 = vec![
-        Dyadic::new(1, -1),
-        Dyadic::new(1, -1),
+        Dyadic::new(1, -2),
+        Dyadic::new(1, -2),
         Dyadic::new(1, -2),
         Dyadic::new(1, -3),
         Dyadic::new(1, -3),
@@ -134,11 +134,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Dyadic::new(1, 0), 
     ];
     // let _top3 = sweep_mseq_len3(&possible_m, 6, delta, -7).await;
-    let r = Dyadic::new(1,0) - Dyadic::new(1,-6);
-    let (r_hat, rho) = certify_r_hat_rho(r, &fprime, 500, 20, 20);
-    let eps = calculate_epsilon(r.to_f64(), r_hat, rho);
-    println!("{:?}, {:?}, {:?}", r_hat.to_f64(), rho.to_f64(), eps) ;
-
+    let val = calculate_for_all_words_updated(6, -1, m_seq2).await;
+    println!("{}", val) ;
     Ok(())
 }
 
