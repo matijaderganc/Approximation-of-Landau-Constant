@@ -6,3 +6,4 @@ pub mod plot ;
 pub mod edt ;
 pub mod evaluation ;
 pub mod corollary_2;
+pub mod ui;

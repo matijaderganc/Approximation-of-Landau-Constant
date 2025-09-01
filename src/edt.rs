@@ -38,6 +38,7 @@ pub fn edt_1d_squared(f: &[f64]) -> Vec<f64> {
 
     // Evaluate envelope
     k = 0;
+    #[allow(clippy::needless_range_loop)] //clippy is an annoying bastard and doesnt allow needless range loops :(
     for q in 0..n {
         while z[k + 1] < q as f64 { k += 1; }
         let p = v[k];

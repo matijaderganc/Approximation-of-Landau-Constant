@@ -1,20 +1,18 @@
 use landau::covering_grids::{
-    covering_grid_bitmap, create_covering_grid, grid_approx, unit_disk_n
+    covering_grid_bitmap, create_covering_grid, unit_disk_n
 };
-use landau::dyadic::{ComplexDyadic, Dyadic};
+use landau::dyadic::{Dyadic};
 use landau::plot::{plot_covering_grid, plot_set};
 
 use landau::holomorphic::{
     BoundingSequence, ComplexFunction, ExpansionCoefficients,
 };
-use landau::psi::{generate_all_words, psi_infinity, t_vector, m_vec, generate_word};
+use landau::psi::{generate_all_words, generate_word, m_vec, mu_second, psi_infinity, t_vector};
 use landau::edt::{landau_l_via_edt_from_bitmap, landau_l_with_edt_from_complex_set, print_grid} ;
 use landau::evaluation::{calculate_for_all_words_updated, calculate_for_length, calculate_for_word_updated, sweep_mseq_len3} ;
 use landau::corollary_2::{calculate_epsilon, certify_r_hat_rho};
 
 use std::vec;
-use std::time::{Duration, Instant};
-fn ms(d: Duration) -> f64 { d.as_secs_f64() * 1000.0 }
 
 use std::sync::Arc;
 use futures::stream::{self, StreamExt};
@@ -89,116 +87,65 @@ pub async fn calculate_random(
 
 
 #[tokio::main(flavor = "multi_thread")] 
-
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    
-    let delta      = Dyadic::new(1, -7);    
-    let m_seq = vec![
-        Dyadic::new(1, -2),
-        Dyadic::new(1, -2),
-        Dyadic::new(1, -2)
-    ];
-    // let (best_word_random, approx_random) = calculate_random(1000, 30, delta, -8).await ;
-    // println!("best approx for random words is: {}, best word is : {:?}", approx_random, best_word_random) ;
-    let (best_word_length, approx_length) = calculate_for_length(3, delta, -5, m_seq).await ;
-    println!("best approx for all words with this length is: {}, best word is : {:?}", approx_length, best_word_length) ;
-    let t_seq1 = t_vector(100);
-    let m_seq1 = vec![
-        Dyadic::new(1, -2),
-        Dyadic::new(1, -2),
-        Dyadic::new(1, -2),
-        Dyadic::new(1, -3),
-        Dyadic::new(1, -3),
-    ];
-    let m_seq2 = m_vec(5) ;
-    let coeffs = psi_infinity(&m_seq2, &t_seq1, &best_word_length);
-    let fprime = ComplexFunction::new(
-        BoundingSequence::new(m_seq1.clone()),
-        ExpansionCoefficients::new(coeffs.clone()),
-    );
-    let f = fprime.antiderivative();
-    for z in &f.expansion_coefficients.vector {
-        println!("{}+{}i", z.re.to_f64(), z.im.to_f64())
-    }
-    let mut img = vec![] ;
-    for &z in &unit_disk_n(-7) {
-        img.push(f.eval(&z));
-    }
-
-    plot_set(&img, "min_image.png") ;
-    let grid = create_covering_grid(&img, delta * Dyadic::new(1, 2), delta);
-    plot_covering_grid(&grid, "min_grid.png");
-
-    let possible_m = vec![
-        Dyadic::new(3, -1), 
-        Dyadic::new(1, 0), 
-    ];
-    // let _top3 = sweep_mseq_len3(&possible_m, 6, delta, -7).await;
-    let val = calculate_for_all_words_updated(6, -1, m_seq2).await;
-    println!("{}", val) ;
-    Ok(())
+async fn main() -> anyhow::Result<()> {
+    landau::ui::run_server().await
 }
-
-
-
-
-
-    // best_word = vec![1, 1, 1, 1, 1, 1] ;
-
-    // --- render/plot the best one ---
-    // let coeffs = psi_infinity(&m_seq, &t_seq, &best_word);
-    // let fprime = ComplexFunction::new(
-    //     BoundingSequence::new(m_seq.clone()),
-    //     ExpansionCoefficients::new(coeffs.clone()),
-    // );
-    // let f = fprime.antiderivative();
+// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
-    // img.clear();
-    // for &z in &domain {
-    //     img.push(f.eval(z));
-    // }
-    // for &z in &img {
-    //     println!("{:?}", z) 
-    // }
-    // let grid = create_covering_grid(&img, eps_over_4, delta);
-    // plot_covering_grid(&grid, "min_grid.png");
-    // let ext = extreme_points(&img) ;
-    // println!("{:?}", ext) ;
-    // plot_set(&img, "min_image.png") ;
-    // let l_check = landau_l_with_edt_from_complex_set(&grid, delta);
-    // println!("l(best) = {}", l_check);
+//     let delta      = Dyadic::new(1, -7);    
+//     let m_seq = vec![
+//         Dyadic::new(1, -2),
+//         Dyadic::new(1, -2),
+//         Dyadic::new(1, -2)
+//     ];
+//     // let (best_word_random, approx_random) = calculate_random(1000, 30, delta, -8).await ;
+//     // println!("best approx for random words is: {}, best word is : {:?}", approx_random, best_word_random) ;
+//     let (best_word_length, approx_length) = calculate_for_length(3, delta, -5, m_seq).await ;
+//     println!("best approx for all words with this length is: {}, best word is : {:?}", approx_length, best_word_length) ;
+//     let t_seq1 = t_vector(100);
+//     let m_seq1 = vec![
+//         Dyadic::new(1, -2),
+//         Dyadic::new(1, -2),
+//         Dyadic::new(1, -2),
+//         Dyadic::new(1, -3),
+//         Dyadic::new(1, -3),
+//     ];
+//     let m_seq2 = m_vec(5) ;
+//     let coeffs = psi_infinity(&m_seq2, &t_seq1, &best_word_length);
+//     let fprime = ComplexFunction::new(
+//         BoundingSequence::new(m_seq1.clone()),
+//         ExpansionCoefficients::new(coeffs.clone()),
+//     );
+//     let f = fprime.antiderivative();
+//     for z in &f.expansion_coefficients.vector {
+//         println!("{}+{}i", z.re.to_f64(), z.im.to_f64())
+//     }
+//     let mut img = vec![] ;
+//     for &z in &unit_disk_n(-7) {
+//         img.push(f.eval(&z));
+//     }
 
-    // Ok(())
-// add these to tests!!!
+//     plot_set(&img, "min_image.png") ;
+//     let grid = create_covering_grid(&img, delta * Dyadic::new(1, 2), delta);
+//     plot_covering_grid(&grid, "min_grid.png");
 
-// let y = Dyadic::new(5, -2);
-// let z = Dyadic::new(4, -1);
-// let w = Dyadic::new(7, -1);
-// let i1 = Interval::new(x, y, z, w);
+//     let possible_m = vec![
+//         Dyadic::new(3, -1), 
+//         Dyadic::new(1, 0), 
+//     ];
+//     // let _top3 = sweep_mseq_len3(&possible_m, 6, delta, -7).await;
+//     let val = calculate_for_all_words_updated(3, -1, m_seq2).await;
+//     println!("{}", val) ;
 
-// let mut word = LinkedList::new();
-// for _ in 0..5 {
-//     word.push_back(1);
+//     println!("{}", mu_second(&1.0, &Dyadic::new(7, -3)));
+//     Ok(())
 // }
-// let i3 = psi(i1, &word) ;
-// print!("{}", i3) ;
-
-// let alpha = ComplexDyadic::new(x, y);
-// let beta = ComplexDyadic::new(z, w) ;
-// let gamma = i1.midpoint().unwrap() ;
-// println!("{}", alpha * beta) ;
-// println!("{}, {}", i1, gamma)
-
-// for a in holo{
-//     println!("{}, {}", a, a.abs())
-// }
-// println!("{}", mu_first(&2.0, &x)) ;
-// println!("{}", mu_second(&2.0, &x))
-
-
 // Test to ensure basic operation and functions perform properly. More test can be added as needed.
 #[cfg(test)]
+
+
 mod tests {
+    use landau::dyadic::{ComplexDyadic};
     use super::*;
 
     #[test]

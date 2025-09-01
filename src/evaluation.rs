@@ -12,6 +12,9 @@ use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficient
 use crate::psi::{psi_infinity, t_vector, generate_all_words};
 use crate::plot::{plot_covering_grid, plot_set};
 
+
+// calculate_for_length evaluates lambda_f values for grids size delta using EDT algorithm. For the domain
+// it takes the standard disk with size 1. This is not exactly as the article suggests, but it is a good approximation none the less.
 pub async fn calculate_for_length(
     length: usize,
     delta: Dyadic,
@@ -24,7 +27,6 @@ pub async fn calculate_for_length(
     let t_seq = Arc::new(t_vector(100));
     let domain = Arc::new(unit_disk_n(disk_accuracy));
     let concurrency = num_cpus::get().max(1);
-    // println!("Working on {} CPU cores", concurrency) ;
     let words: Vec<Vec<u8>> = generate_all_words(length);
 
     let mut results = stream::iter(words.into_iter())
@@ -34,7 +36,6 @@ pub async fn calculate_for_length(
             let t_seq  = Arc::clone(&t_seq);
 
             tokio::task::spawn_blocking(move || {
-                // Build f' from the word, then integrate to f
                 let coeffs = psi_infinity(&m_seq2, &t_seq, &word);
                 let fprime = ComplexFunction::new(
                     BoundingSequence::new((*m_seq2).clone()),
@@ -48,7 +49,7 @@ pub async fn calculate_for_length(
                     img.push(f.eval(&z));
                 }
 
-                // EDT path (bitmap → Landau l)
+                // standard evaluation using GridBitmap and EDT
                 let grid_bitmap = covering_grid_bitmap(&img, epsilon, delta);
                 let l_val = landau_l_via_edt_from_bitmap(&grid_bitmap, delta);
 
@@ -57,10 +58,10 @@ pub async fn calculate_for_length(
         })
         .buffer_unordered(concurrency);
 
-    // Reduce to the best (min ℓ)
     let mut best_l = f64::INFINITY;
     let mut best_word: Vec<u8> = vec![];
 
+    // we have results for all words, we then find the one with the best approximation
     while let Some(res) = results.next().await {
         let (l_val, word) = res.expect("worker panicked");
         if l_val < best_l {
@@ -73,6 +74,8 @@ pub async fn calculate_for_length(
 
  }
 
+ // This part was only used partially in order to evaluate performance of different m_sequences. It evaluates the calculate_for_length
+ // on all possible m_sequences formed by given dyadics (seq of finite length) and returns ones with best approximations. Currently not in use.
 struct MSeqResult {
     m_seq: Vec<Dyadic>,
     word: Vec<u8>,
@@ -139,12 +142,12 @@ pub async fn sweep_mseq_len3(
         .map(|e| (e.m_seq, e.word, e.approx))
         .collect()
 }
-// we just use this to calculate disk_accuracy
+// we just use this to calculate disk_accuracy needed, epsilon/2 is fine as points arent spread out too far apart
 fn minimal_pow2_step_below(eps: Dyadic) -> (i32, Dyadic) {
     assert!(eps > Dyadic::zero(), "eps must be > 0");
-    // Start with n = ceil(-log2(eps)) using f64 to get a candidate…
+    
     let mut n = (-eps.to_f64().log2()).ceil() as i32;
-    // …and then check/adjust in exact dyadics to ensure strict inequality.
+    // assure strict inequality
     let mut step = Dyadic::new(1, -n).reduce(); // 2^{-n}
     if step >= eps {
         n += 1;
@@ -152,13 +155,17 @@ fn minimal_pow2_step_below(eps: Dyadic) -> (i32, Dyadic) {
     }
     (-n-1, step)
 }
-// calculates the approximation for a certain word on a disk with radius 1-2^(-n), as described in corollary 2.
+
+
+// calculates the approximation for a certain word on a disk with radius 1-2^(-n), as described in corollary 2. We currently use this
+// this one only evaluates one word, disk_decrease tells us what radius we use for domain. We can also choose to plot results. We do that
+// inside of the function because visualisation helps us understand if the sets are being evaluated properly.
 pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_seq : Vec<Dyadic>, plot : bool) -> f64 {
     let r_dy = (Dyadic::new(1, 0) - Dyadic::new(1, disk_decrease)).reduce();
     let r_f = r_dy.to_f64() ; 
     let m_seq1  = Arc::new(m_seq);
-    let t_seq = Arc::new(t_vector(100));
-    let n_samples = 500 ; //subject to change!
+    let t_seq = Arc::new(t_vector(100)); // Could be bigger, but for now 100 is MORE than enough
+    let n_samples = 500 ; //subject to change, used to evaluate rho as described in Lemma 6
     tokio::task::spawn_blocking(move || {
         // Build f' from the word, then integrate to f
         let coeffs = psi_infinity(&m_seq1, &t_seq, &word);
@@ -166,8 +173,9 @@ pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_s
             BoundingSequence::new((*m_seq1).clone()),
             ExpansionCoefficients::new(coeffs),
         );
-        let f = fprime.antiderivative();;
+        let f = fprime.antiderivative();
         
+        // we calculate r_hat, rho as described in article. This later gives us epsilon, so we can complute sufficient epsilon covering grid
         let (r_hat, rho) = certify_r_hat_rho(r_dy, &fprime, n_samples, 30, 30) ;
         let mut eps = calculate_epsilon(r_f, r_hat, rho);
         let min_eps = Dyadic::new(1, -6); // THIS IS CUSTOM FIX!!!
@@ -185,6 +193,7 @@ pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_s
         let grid_bitmap = covering_grid_bitmap(&img, eps, delta);
         let l_val = landau_l_via_edt_from_bitmap(&grid_bitmap, delta);
         if plot {
+            println!("{}, {} is eps, delta", eps.to_f64(), delta.to_f64());
             plot_set(&img, "test_image.png");
             let grid_set = create_covering_grid(&img, eps, delta);
             plot_covering_grid(&grid_set, "test_grid.png");

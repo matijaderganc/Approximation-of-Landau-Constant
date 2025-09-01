@@ -1,14 +1,9 @@
-use crate::dyadic::{Dyadic, ComplexDyadic, Interval, psi} ;
+use crate::dyadic::{Dyadic, ComplexDyadic} ;
 use std::collections::HashSet;
-use plotters::prelude::*;
 
-pub struct CoveringGrid {
-    pub grid : Vec<(i32, i32)> ,
-    pub epsilon : f64 ,
-    pub delta : Dyadic , 
-}
 
-pub fn unit_disk_n( n : i32) -> Vec<ComplexDyadic> { //could be improved, we check the whole square
+//create a unit disk domain as a grid, n means points will be 2^{-n} apart
+pub fn unit_disk_n( n : i32) -> Vec<ComplexDyadic> { 
     let mut points = Vec::new()  ;
     let max = (2i128).pow(-n as u32) ;
     for real in -max..=max {
@@ -21,7 +16,7 @@ pub fn unit_disk_n( n : i32) -> Vec<ComplexDyadic> { //could be improved, we che
             }
         }
     }
-    return points
+    points
 }
 // unit_disk_radius return a unit disk wiht radius r, and n determines how dense the inside of the disk is
 pub fn unit_disk_radius(disk_accuracy : i32, r : f64) -> Vec<ComplexDyadic>{
@@ -37,7 +32,7 @@ pub fn unit_disk_radius(disk_accuracy : i32, r : f64) -> Vec<ComplexDyadic>{
             }
         }
     }
-    return points
+    points
     }
 
 pub fn unit_disk_n_boundary(n : i32) -> Vec<ComplexDyadic> {
@@ -53,7 +48,7 @@ pub fn unit_disk_n_boundary(n : i32) -> Vec<ComplexDyadic> {
             }
         }
     }
-    return points
+    points
 }
 
 pub fn extreme_points(vec : &Vec<ComplexDyadic>) -> Option<Vec<ComplexDyadic>> {
@@ -79,12 +74,11 @@ pub fn extreme_points(vec : &Vec<ComplexDyadic>) -> Option<Vec<ComplexDyadic>> {
             highest_im = point
         }
     }
-    return Some(vec![lowest_real, highest_real, lowest_im, highest_im])
+    Some(vec![lowest_real, highest_real, lowest_im, highest_im])
 }
 
 pub fn create_covering_grid(set : &Vec<ComplexDyadic>, epsilon : Dyadic, delta : Dyadic) -> HashSet<ComplexDyadic> {
     let mut out: HashSet<ComplexDyadic> = HashSet::new();
-    let delta_f64 = delta.to_f64();
     if set.is_empty() { return out; }
 
     let delta_f = delta.to_f64();
