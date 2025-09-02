@@ -15,7 +15,7 @@ use crate::plot::plot_set;
 use crate::psi::{m_vec, psi_infinity, t_vector};
 
 // NEW: bring the sweep into scope
-use crate::evaluation::calculate_for_all_words_updated;
+use crate::evaluation::{approximate_all_words, approximate_all_words_length};
 
 /// Shared app state: store the most recent PNG bytes (simple demo).
 #[derive(Default)]
@@ -194,7 +194,7 @@ async fn calc_all(State(state): State<SharedState>, Form(form): Form<CalcAllForm
     let m_seq = m_vec(5);
 
     // Run the async sweep (it re-runs the best word with plotting enabled inside)
-    let approx = calculate_for_all_words_updated(length, disk_decrease, m_seq).await;
+    let approx = approximate_all_words(length, disk_decrease, m_seq).await;
 
     // After the sweep re-plots the best word, try to read the PNG it produced.
     // If your calculate_for_word_updated writes to a known "plot.png", this will pick it up.

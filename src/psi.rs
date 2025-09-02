@@ -2,6 +2,7 @@ use crate::dyadic::{psi, ComplexDyadic, Dyadic, Interval};
 use rand::Rng;
 use std::collections::LinkedList;
 
+
 fn vec_to_linked_list(vec: Vec<u8>) -> LinkedList<u8> {
     let mut list = LinkedList::new();
 
@@ -21,8 +22,7 @@ pub fn generate_word(length: i32) -> Vec<u8> {
     word
 }
 
-// Generates all possible vectors of given length with values ranging from 1 to 4 inclusive.
-// Used to get all possible words
+/// Generates all possible vectors of given length with values ranging from 1 to 4 inclusive.
 pub fn generate_all_words(length: usize) -> Vec<Vec<u8>> {
     if length == 0 {
         return vec![vec![]]; // base case: one empty vector
@@ -42,8 +42,8 @@ pub fn generate_all_words(length: usize) -> Vec<Vec<u8>> {
     result
 }
 
-fn select_matching(n: usize, vec1: &Vec<usize>, vec2: &Vec<u8>) -> Vec<u8> {
-    //words will be u8
+fn select_matching(n: usize, vec1: &[usize], vec2: &[u8]) -> Vec<u8> {
+    //words will be Vec<u8> type
     let mut output = Vec::new();
 
     for (v1, v2) in vec1.iter().zip(vec2.iter()) {
@@ -54,11 +54,12 @@ fn select_matching(n: usize, vec1: &Vec<usize>, vec2: &Vec<u8>) -> Vec<u8> {
     output
 }
 
-pub fn psi_infinity(m_seq: &Vec<Dyadic>, t_seq: &Vec<usize>, word: &Vec<u8>) -> Vec<ComplexDyadic> {
+pub fn psi_infinity(m_seq: &[Dyadic], t_seq: &[usize], word: &[u8]) -> Vec<ComplexDyadic> {
     let mut out = Vec::new();
     out.push(ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0)));
+    #[allow(clippy::needless_range_loop)] 
     for n in 0..m_seq.len() {
-        let word_on_step = select_matching(n as usize, t_seq, word);
+        let word_on_step = select_matching(n, t_seq, word);
         let interval1 = Interval::new(
             m_seq[n] * Dyadic::new(-1, 0),
             m_seq[n],
@@ -74,27 +75,24 @@ pub fn psi_infinity(m_seq: &Vec<Dyadic>, t_seq: &Vec<usize>, word: &Vec<u8>) -> 
             None => panic!("Empty interval"),
         }
     }
-
-    return out;
+    out
 }
 
 pub fn mu_first(c: &f64, r: &Dyadic) -> f64 {
     let e = std::f64::consts::E;
-    let a = (2.0_f64).sqrt()
+    (2.0_f64).sqrt()
         * (c * e
             * (1.0 / 2.0)
             * (1.0 / (1.0 - r.to_f64()) + (1.0 / ((1.0 - r.to_f64()).powf(2.0))))
-            + (2.0 - c * e));
-    a
+            + (2.0 - c * e))
 }
 
 pub fn mu_second(c: &f64, r: &Dyadic) -> f64 {
     let e = std::f64::consts::E;
-    let a = (2.0_f64).sqrt()
+    (2.0_f64).sqrt()
         * (((c * e) / ((1.0 - r.to_f64()).powf(3.0)))
             + (c * e) / (2.0 * (1.0 - r.to_f64()).powf(2.0))
-            + 2.0);
-    a
+            + 2.0)
 }
 
 fn t_stream() -> impl Iterator<Item = usize> {
