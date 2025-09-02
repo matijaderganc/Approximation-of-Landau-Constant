@@ -8,7 +8,6 @@ fn vec_to_linked_list(vec: Vec<u8>) -> LinkedList<u8> {
     for elem in vec {
         list.push_back(elem);
     }
-
     list
 }
 
@@ -19,7 +18,7 @@ pub fn generate_word(length: i32) -> Vec<u8> {
     for _ in 0..length {
         word.push(rng.gen_range(1..5))
     }
-    return word;
+    word
 }
 
 // Generates all possible vectors of given length with values ranging from 1 to 4 inclusive.
@@ -86,7 +85,7 @@ pub fn mu_first(c: &f64, r: &Dyadic) -> f64 {
             * (1.0 / 2.0)
             * (1.0 / (1.0 - r.to_f64()) + (1.0 / ((1.0 - r.to_f64()).powf(2.0))))
             + (2.0 - c * e));
-    return a;
+    a
 }
 
 pub fn mu_second(c: &f64, r: &Dyadic) -> f64 {
@@ -95,7 +94,7 @@ pub fn mu_second(c: &f64, r: &Dyadic) -> f64 {
         * (((c * e) / ((1.0 - r.to_f64()).powf(3.0)))
             + (c * e) / (2.0 * (1.0 - r.to_f64()).powf(2.0))
             + 2.0);
-    return a;
+    a
 }
 
 fn t_stream() -> impl Iterator<Item = usize> {

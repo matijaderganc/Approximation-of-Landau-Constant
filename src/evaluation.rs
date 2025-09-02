@@ -103,9 +103,9 @@ pub async fn sweep_mseq_len3(
         for j in 0..n {
             for k in 0..n {
                 let m_seq = vec![
-                    possible_m[i].clone(),
-                    possible_m[j].clone(),
-                    possible_m[k].clone(),
+                    possible_m[i],
+                    possible_m[j],
+                    possible_m[k],
                 ];
 
                 let (best_word, best_l) =

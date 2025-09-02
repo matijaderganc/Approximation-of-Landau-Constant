@@ -198,7 +198,7 @@ async fn calc_all(State(state): State<SharedState>, Form(form): Form<CalcAllForm
 
     // After the sweep re-plots the best word, try to read the PNG it produced.
     // If your calculate_for_word_updated writes to a known "plot.png", this will pick it up.
-    let png_bytes = std::fs::read("plot.png");
+    let png_bytes = std::fs::read("test_grid.png");
     match png_bytes {
         Ok(bytes) => {
             *state.png.lock().unwrap() = bytes;

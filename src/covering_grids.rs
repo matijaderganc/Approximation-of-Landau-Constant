@@ -2,14 +2,14 @@ use crate::dyadic::{Dyadic, ComplexDyadic} ;
 use std::collections::HashSet;
 
 
-//create a unit disk domain as a grid, n means points will be 2^{-n} apart
-pub fn unit_disk_n( n : i32) -> Vec<ComplexDyadic> { 
+//create a unit disk domain as a grid, disk_accuracy means points will be 2^{-n} apart
+pub fn unit_disk_n( disk_accuracy : i32) -> Vec<ComplexDyadic> { 
     let mut points = Vec::new()  ;
-    let max = (2i128).pow(-n as u32) ;
+    let max = (2i128).pow(-disk_accuracy as u32) ;
     for real in -max..=max {
         for imaginary in -max..=max {
-            let re = Dyadic::new(real, n) ;
-            let im = Dyadic::new(imaginary, n) ;
+            let re = Dyadic::new(real, disk_accuracy) ;
+            let im = Dyadic::new(imaginary, disk_accuracy) ;
             let z = ComplexDyadic::new(re, im) ;
             if z.abs() <= 1.0 {
                 points.push(z)
@@ -18,7 +18,7 @@ pub fn unit_disk_n( n : i32) -> Vec<ComplexDyadic> {
     }
     points
 }
-// unit_disk_radius return a unit disk wiht radius r, and n determines how dense the inside of the disk is
+// unit_disk_radius return a unit disk wiht radius r, and disk_accuracy means points will be 2^{-n} apart
 pub fn unit_disk_radius(disk_accuracy : i32, r : f64) -> Vec<ComplexDyadic>{
     let mut points = Vec::new()  ;
     let max = (2i128).pow(-disk_accuracy as u32) ;
@@ -35,15 +35,16 @@ pub fn unit_disk_radius(disk_accuracy : i32, r : f64) -> Vec<ComplexDyadic>{
     points
     }
 
-pub fn unit_disk_n_boundary(n : i32) -> Vec<ComplexDyadic> {
+//returns just the boundary of unit disk
+pub fn unit_disk_n_boundary(disk_accuracy : i32) -> Vec<ComplexDyadic> {
     let mut points = Vec::new()  ;
-    let max = (2i128).pow(-n as u32) ;
+    let max = (2i128).pow(-disk_accuracy as u32) ;
     for real in -max..=max {
         for imaginary in -max..=max {
-            let re = Dyadic::new(real, n) ;
-            let im = Dyadic::new(imaginary, n) ;
+            let re = Dyadic::new(real, disk_accuracy) ;
+            let im = Dyadic::new(imaginary, disk_accuracy) ;
             let z = ComplexDyadic::new(re, im) ;
-            if z.abs() <= 1.0 + Dyadic::new(1,n).to_f64() && z.abs() >= 1.0 {
+            if z.abs() <= 1.0 + Dyadic::new(1,disk_accuracy).to_f64() && z.abs() >= 1.0 {
                 points.push(z)
             }
         }
@@ -51,6 +52,7 @@ pub fn unit_disk_n_boundary(n : i32) -> Vec<ComplexDyadic> {
     points
 }
 
+//determines extreme points (lowest/highest real/complex part)
 pub fn extreme_points(vec : &Vec<ComplexDyadic>) -> Option<Vec<ComplexDyadic>> {
     if vec.is_empty() {
         return None; // No points, return None
@@ -77,15 +79,16 @@ pub fn extreme_points(vec : &Vec<ComplexDyadic>) -> Option<Vec<ComplexDyadic>> {
     Some(vec![lowest_real, highest_real, lowest_im, highest_im])
 }
 
+//create an epsilon covering grid from an image: a grid point is inside if it is epsilon or closer away from one point in the image
 pub fn create_covering_grid(set : &Vec<ComplexDyadic>, epsilon : Dyadic, delta : Dyadic) -> HashSet<ComplexDyadic> {
     let mut out: HashSet<ComplexDyadic> = HashSet::new();
     if set.is_empty() { return out; }
 
     let delta_f = delta.to_f64();
     let eps_f   = epsilon.to_f64();
-    let inv_d   = 1.0 / delta_f;
+    let inv_d   = 1.0 / delta_f; //precompute
     
-    let r_float = eps_f * inv_d;           // ε / δ
+    let r_float = eps_f * inv_d;           
     let r       = r_float.ceil() as i32;   // search square radius
     let r2      = r_float * r_float; 
     let mut lattice: HashSet<(i32, i32)> = HashSet::with_capacity(set.len() * ((2*r + 1) as usize));
@@ -107,14 +110,13 @@ pub fn create_covering_grid(set : &Vec<ComplexDyadic>, epsilon : Dyadic, delta :
 
             for dj in -r..=r {
                 let dy = (cy + dj) as f64 - cy_f;
-                if dx2 + dy*dy <= r2 + 1e-12 {   // small epsilon to be robust against FP ties
+                if dx2 + dy*dy <= r2 + 1e-14 {   // small epsilon to be robust against FP ties
                     lattice.insert((cx + di, cy + dj));
                 }
             }}
     } 
     out.reserve(lattice.len());
     for (i, j) in lattice {
-        // i*δ, j*δ  (use your dyadic ops; this happens once per kept cell)
         let re = Dyadic::new(i as i128, 0) * delta;
         let im = Dyadic::new(j as i128, 0) * delta;
         out.insert(ComplexDyadic::new(re, im));
@@ -123,6 +125,7 @@ pub fn create_covering_grid(set : &Vec<ComplexDyadic>, epsilon : Dyadic, delta :
     out
 }
 
+//creates complement of a grid on a scale of its extremes
 pub fn grid_complement(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> HashSet<ComplexDyadic> {
     let extremes = extreme_points(&grid.iter().copied().collect()).unwrap();
     let min_real = extremes[0].re.to_f64();
@@ -150,6 +153,7 @@ pub fn grid_complement(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> HashSe
     full_grid
 }
 
+//approximates the value of a largest disk inside the grid, but this is a slow, quadratic algorithm
 pub fn grid_approx(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> f64 {
     let mut max : Option<f64> = Some(delta.to_f64()) ;
     let comp = grid_complement(grid, delta) ;
@@ -176,33 +180,6 @@ pub fn grid_approx(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> f64 {
         }
     }
     max.unwrap() - (delta.to_f64()*4.0)
-}
-
-pub fn grid_approx_with_edge(inside : &HashSet<ComplexDyadic>, edge: &HashSet<ComplexDyadic>, delta : Dyadic) -> f64 {
-    let mut max : Option<f64> = Some(delta.to_f64()) ;
-    for point1 in inside{
-        let mut min : Option<f64> = None ;
-        for point2 in edge {
-            let dist = (*point1 - *point2).abs() ;
-            if let Some(current_min) = min {
-                if dist < current_min {
-                    min = Some(dist)
-                }
-            }
-            else {
-                min = Some(dist)
-            }
-        }
-        if let Some(current_max) = max {
-            if min.unwrap() > current_max {
-                max = Some(min.unwrap())
-            }
-        }
-        else {
-            max = Some(min.unwrap())
-        }
-    }
-    max.unwrap() 
 }
 
 // we will now write a faster version of grid creation that creates a hash map directly and doesnt bother with 
@@ -308,7 +285,8 @@ pub fn bitmap_to_complex_set(g: &GridBitmap, delta: Dyadic) -> HashSet<ComplexDy
     }
 
     // Emit a ComplexDyadic for each inside pixel
-    out.reserve(g.width * g.height / 8 + 1); // rough pre-reserve to reduce rehashing
+    out.reserve(g.width * g.height / 8 + 1); 
+    #[allow(clippy::needless_range_loop)] // rough pre-reserve to reduce rehashing
     for y in 0..g.height {
         for x in 0..g.width {
             if g.data[y * g.width + x] != 0 {
