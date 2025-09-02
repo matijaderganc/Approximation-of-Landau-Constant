@@ -1,21 +1,125 @@
+use std::sync::{Arc, Mutex};
+
 use axum::{
+    Router,
     extract::{Form, State},
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     response::{Html, IntoResponse, Response},
     routing::{get, post},
-    Router,
 };
 use serde::Deserialize;
-use std::sync::{Arc, Mutex};
 use tokio::{net::TcpListener, task};
 
 use crate::covering_grids::{unit_disk_n, unit_disk_radius};
+// NEW: bring the sweep into scope
+use crate::evaluation::calculate_for_all_words_updated;
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
 use crate::plot::plot_set;
 use crate::psi::{m_vec, psi_infinity, t_vector};
 
-// NEW: bring the sweep into scope
-use crate::evaluation::calculate_for_all_words_updated;
+
+// --- NEW: site-wide layout helpers and constants ---
+
+// Change this to your real contact address:
+const CONTACT_EMAIL: &str = "contact@example.com";
+
+// Common CSS for all pages (kept close to your original styles)
+fn common_css() -> &'static str {
+    r#"
+    :root { --bg:#0a0b10; --fg:#e6e9ef; --muted:#a0a7b4; --card:#131522; --brand:#7aa2ff; --accent:#99e2b4 }
+    * { box-sizing: border-box }
+    html, body { margin:0; padding:0; height:100%; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif; color:var(--fg); background:radial-gradient(1200px 800px at 20% -30%, #14172a 0%, #0b0d17 40%, #0a0b10 100%) fixed }
+    a { color: var(--brand); text-decoration: none }
+    a:hover { text-decoration: underline }
+    .container { max-width: 980px; margin: 0 auto; padding: 2rem 1.25rem }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)); border:1px solid rgba(255,255,255,.06); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); padding: 1.25rem }
+    h1, h2 { letter-spacing:.2px; }
+    h1 { font-size: 1.6rem; margin: 0 0 1rem }
+    h2 { font-size: 1.25rem; margin: 1.25rem 0 .5rem }
+    p { color: var(--muted); line-height: 1.55 }
+    code { background:#0f1120; padding:.12rem .35rem; border-radius:.35rem }
+    label { display:block; margin:.5rem 0 .25rem }
+    input[type="text"], input[type="number"] {
+      width:100%; padding:.6rem .7rem; background:#0f1120; color:var(--fg);
+      border:1px solid rgba(255,255,255,.08); border-radius:.5rem; outline:none;
+    }
+    input[type="number"] { max-width: 220px }
+    button {
+      display:inline-flex; align-items:center; gap:.5rem; padding:.6rem .9rem; border-radius:.55rem; border:1px solid rgba(255,255,255,.1);
+      color:#0b0d17; background: linear-gradient(180deg, #adcbff, #7aa2ff); font-weight:600; cursor:pointer;
+    }
+    button:hover { filter: brightness(1.02) }
+    hr { margin:1.75rem 0; border:none; border-top:1px solid rgba(255,255,255,.08) }
+    .row { display:grid; grid-template-columns: 1fr 220px; gap:1rem; align-items:end }
+    .nav { background: rgba(255,255,255,.02); border-bottom: 1px solid rgba(255,255,255,.06) }
+    .nav-inner { max-width: 980px; margin:0 auto; padding:.8rem 1.25rem; display:flex; gap:1rem; align-items:center; justify-content:space-between }
+    .nav a.brand { font-weight: 700; letter-spacing:.4px; color: var(--fg) }
+    .nav .links { display:flex; gap:1rem }
+    .footer { margin-top: 2rem; padding: 1rem 1.25rem; border-top: 1px solid rgba(255,255,255,.08); color: var(--muted) }
+    .badge { display:inline-block; font-size:.75rem; padding:.2rem .5rem; border-radius:.4rem; background: rgba(153,226,180,.15); color: var(--accent); border:1px solid rgba(153,226,180,.25) }
+    ul { margin: .5rem 0 .5rem 1rem }
+    li { margin:.25rem 0 }
+    figure { margin: 1rem 0; text-align: center }
+    figcaption { color: var(--muted); font-size:.9rem; margin-top:.35rem }
+    "#
+}
+
+// Small top navigation used by all pages
+fn nav_html() -> String {
+    format!(
+        r#"
+    <div class="nav">
+      <div class="nav-inner">
+        <a class="brand" href="/">Landau Explorer</a>
+        <div class="links">
+          <a href="/">Home</a>
+          <a href="/intro">Introduction</a>
+        </div>
+      </div>
+    </div>
+    "#
+    )
+}
+
+// Footer with contact email
+fn footer_html() -> String {
+    format!(
+        r#"
+    <div class="container footer">
+      <div>© Landau Explorer · Contact: <a href="mailto:{0}">{0}</a></div>
+    </div>
+    "#,
+        CONTACT_EMAIL
+    )
+}
+
+// Page layout wrapper
+fn page_html(title: &str, inner: &str) -> String {
+    format!(
+        r#"<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>{title}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>{css}</style>
+  </head>
+  <body>
+    {nav}
+    <main class="container">
+      {inner}
+    </main>
+    {footer}
+  </body>
+</html>"#,
+        title = title,
+        css = common_css(),
+        nav = nav_html(),
+        inner = inner,
+        footer = footer_html()
+    )
+}
+
 
 /// Shared app state: store the most recent PNG bytes (simple demo).
 #[derive(Default)]
@@ -54,61 +158,46 @@ fn parse_word(input: &str) -> Vec<u8> {
 }
 
 async fn home() -> Html<String> {
-    Html(
-        r#"
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8"/>
-    <title>Word → f(D_{1})</title>
-    <style>
-      body{font:16px/1.4 system-ui, sans-serif; margin:2rem auto; max-width:800px}
-      input[type=text], input[type=number]{width:100%; padding:.5rem; font-size:1rem}
-      button{padding:.5rem 1rem; font-size:1rem}
-      code{background:#f6f8fa; padding:.1rem .3rem; border-radius:.25rem}
-      .row{display:grid; grid-template-columns: 1fr 180px; gap:1rem; align-items:end}
-      label{display:block; margin:.5rem 0 .25rem}
-      hr{margin:1.75rem 0; border:none; border-top:1px solid #eee}
-    </style>
-  </head>
-  <body>
-    <h1>Word → image of D<sub>1</sub></h1>
+    let inner = r#"
+    <div class="card">
+      <h1>Word → image of D<sub>1</sub></h1>
+      <p>Enter a word over <code>{1,2,3,4}</code> to generate the derivative via <code>psi_infinity</code>, integrate to a normalised <code>f</code>, evaluate on a discrete unit disk, and render.</p>
 
-    <!-- Existing window -->
-    <form method="post" action="/plot">
-      <div class="row">
-        <div>
-          <label>Word (use only symbols: <code>1, 2, 3, 4</code> or <code>1234</code>):</label>
-          <input type="text" name="word" placeholder="1,2,3,4" required />
+      <form method="post" action="/plot">
+        <div class="row">
+          <div>
+            <label>Word (e.g. <code>1,2,3,4</code> or <code>1234</code>)</label>
+            <input type="text" name="word" placeholder="1,2,3,4" required />
+          </div>
+          <div>
+            <label>Accuracy n (step = 2<sup>−n</sup>)</label>
+            <input type="number" name="acc_n" min="6" max="18" value="10" />
+          </div>
         </div>
-        <div>
-          <label>Accuracy n (step = 2<sup>−n</sup>):</label>
-          <input type="number" name="acc_n" min="6" max="18" value="10" />
-        </div>
-      </div>
-      <p><button type="submit">Plot</button></p>
-    </form>
+        <p><button type="submit">Plot</button></p>
+      </form>
 
-    <hr/>
+      <hr/>
 
-    <!-- NEW window: sweep all words of given length -->
-    <form method="post" action="/calc-all">
-      <div class="row">
-        <div>
-          <label>Word length:</label>
-          <input type="number" name="length" min="1" value="3" required />
+      <h2>Exhaustive sweep</h2>
+      <p>Try all words of a given length and choose the best image (per your EDT-based objective).</p>
+      <form method="post" action="/calc-all">
+        <div class="row">
+          <div>
+            <label>Word length</label>
+            <input type="number" name="length" min="1" max="10" value="3" />
+          </div>
+          <div>
+            <label>Step (UI) → <code>disk_decrease</code></label>
+            <input type="number" name="step" min="1" max="10" value="3" />
+          </div>
         </div>
-        <div>
-          <label>Step (1 → disk_decrease = −1):</label>
-          <input type="number" name="step" min="1" value="1" required />
-        </div>
-      </div>
-      <p><button type="submit">Calculate best & plot</button></p>
-    </form>
-  </body>
-</html>
-"#.to_string(),
-    )
+        <p><button type="submit">Run sweep</button></p>
+      </form>
+    </div>
+  "#;
+
+    Html(page_html("Landau Explorer — Home", inner))
 }
 
 async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> impl IntoResponse {
@@ -116,6 +205,12 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
     let word_vec = parse_word(&form.word);
     let word_disp = format!("{:?}", word_vec);
     let acc_n_ui = form.acc_n.unwrap_or(5).clamp(3, 18);
+
+    let word = form.word.trim().to_string();
+    let acc_n_display = match form.acc_n {
+        Some(n) => n.to_string(),
+        None => "(default)".to_string(),
+    };
 
     // Build inputs for the blocking job (as in your code)
     let m_seq = Arc::new(m_vec(5));
@@ -159,33 +254,83 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
     match res {
         Ok(Ok(png_bytes)) => {
             *state.png.lock().unwrap() = png_bytes;
-            let html = format!(
+            let inner = format!(
                 r#"
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8"/>
-    <title>Result</title>
-    <style>body{{font:16px/1.4 system-ui, sans-serif; margin:2rem auto; max-width:900px}}</style>
-  </head>
-  <body>
-    <p><a href="/">← back</a></p>
-    <p><b>Word:</b> {word_disp}</p>
-    <p><b>Accuracy:</b> n = {acc_n_ui} (step = 2<sup>−{acc_n_ui}</sup>)</p>
-    <img alt="plot" src="/img" />
-  </body>
-</html>
-"#
+              <div class="card">
+                <p><a href="/">← back</a></p>
+                <h1>Result</h1>
+                <p><b>Word:</b> [{word}]</p>
+                <p><b>Accuracy n:</b> {acc_n_display}</p>
+                <figure>
+                  <img alt="plot" src="/img" />
+                  <figcaption>Image of D under f built from your word.</figcaption>
+                </figure>
+              </div>
+            "#
             );
-            Html(html).into_response()
+            Html(page_html("Landau Explorer — Plot", &inner)).into_response()
         }
         Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 
+async fn intro() -> Html<String> {
+    let inner = r#"
+    <div class="card">
+      <span class="badge">Overview</span>
+      <h1>Introduction to Landau’s constant and this app</h1>
+      <p>
+        <strong>Landau’s constant</strong> λ is the largest universal c &gt; 0 such that for every holomorphic function
+        <code>f</code> on a disk <code>D<sub>r</sub>(z₀)</code> with <code>f′(z₀) ≠ 0</code>, the image <code>f(D<sub>r</sub>(z₀))</code> contains
+        a Euclidean disk of radius <code>|f′(z₀)| · r · c</code>. The <em>supremum</em> of such c is λ. Known bounds are
+        <code>0.5 &lt; λ ≤ 0.54325…</code>. The exact value is unknown, but it is computably approximable.
+      </p>
+
+      <h2>Algorithmic idea (Rettinger, 2012)</h2>
+      <p>
+        The key is to work with <em>normalised</em> functions (f(0)=0, f′(0)=1) represented via a derivative
+        power series with bounded coefficients. A word over {1,2,3,4} selects nested intervals to produce
+        the coefficients (your <code>psi_infinity</code>), yielding <code>f′</code>. Integrating gives <code>f</code>.
+        For a fixed <code>f</code>, we estimate <code>λ<sub>f</sub> = l(f(D))</code>, the radius of the largest disk contained
+        in the image <code>f(D)</code>. Taking an infimum over a compact, well-chosen class yields λ.
+      </p>
+
+      <h2>What this app does</h2>
+      <ul>
+        <li><strong>Build</strong> <code>f′</code> from a chosen word via <code>psi_infinity</code>, then compute the antiderivative <code>f</code>.</li>
+        <li><strong>Sample</strong> a discrete domain (unit disk at dyadic mesh 2<sup>−n</sup>) and evaluate <code>f</code>.</li>
+        <li><strong>Covering grid</strong>: convert the image set into a bitmap / grid approximation.</li>
+        <li><strong>EDT</strong>: run an Euclidean Distance Transform to estimate the maximal inscribed disk radius
+            <code>l(f(D))</code> (your <code>landau_l_via_edt_from_bitmap</code> pipeline).</li>
+        <li><strong>Sweep</strong>: enumerate words to search for small <code>λ<sub>f</sub></code> and tighten lower bounds.</li>
+      </ul>
+
+      <h2>Reading colored plots of holomorphic maps</h2>
+      <p>
+        A common visualization is <em>domain coloring</em>: hue encodes the argument <code>arg f(z)</code>, while
+        brightness/saturation encodes the magnitude (often <code>log |f(z)|</code>). Zeros appear where the hue
+        wheel completes a full turn and brightness is near minimum; critical points cause characteristic
+        color “pinwheels”. In our current plot we show samples of the image set; domain coloring
+        swaps the point plotter for a per-pixel shader over the sampled domain. This provides us with more information that would otherwise be available with a simple plot.
+      </p>
+
+      <h2>Reference</h2>
+      <p>
+        R. Rettinger (2012), <em>On Computable Approximations of Landau’s Constant</em>, Logical Methods
+        in Computer Science, 8(4:15), 1–11. <a href="https://lmcs.episciences.org/1189/pdf" target="_blank" rel="noopener">PDF</a>
+      </p>
+    </div>
+  "#;
+
+    Html(page_html("Landau Explorer — Introduction", inner))
+}
+
 // NEW: sweep handler
-async fn calc_all(State(state): State<SharedState>, Form(form): Form<CalcAllForm>) -> impl IntoResponse {
+async fn calc_all(
+    State(state): State<SharedState>,
+    Form(form): Form<CalcAllForm>,
+) -> impl IntoResponse {
     let length = form.length;
     let step = form.step.max(1); // guard
     let disk_decrease = -step;
@@ -202,26 +347,22 @@ async fn calc_all(State(state): State<SharedState>, Form(form): Form<CalcAllForm
     match png_bytes {
         Ok(bytes) => {
             *state.png.lock().unwrap() = bytes;
-            let html = format!(
+            let inner = format!(
                 r#"
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8"/>
-    <title>Sweep result</title>
-    <style>body{{font:16px/1.4 system-ui, sans-serif; margin:2rem auto; max-width:900px}}</style>
-  </head>
-  <body>
-    <p><a href="/">← back</a></p>
-    <p><b>Length:</b> {length}</p>
-    <p><b>Step:</b> {step} (disk_decrease = {disk_decrease})</p>
-    <p><b>Best approximation:</b> {approx:.12}</p>
-    <img alt="plot" src="/img" />
-  </body>
-</html>
-"#
+                <div class="card">
+                  <p><a href="/">← back</a></p>
+                  <h1>Sweep result</h1>
+                  <p><b>Length:</b> {length}</p>
+                  <p><b>Step:</b> {step} (disk_decrease = {disk_decrease})</p>
+                  <p><b>Best approximation:</b> {approx:.12}</p>
+                  <figure>
+                    <img alt="plot" src="/img" />
+                    <figcaption>Best image among sampled words.</figcaption>
+                  </figure>
+                </div>
+              "#
             );
-            Html(html).into_response()
+            Html(page_html("Landau Explorer — Sweep", &inner)).into_response()
         }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -234,7 +375,11 @@ async fn calc_all(State(state): State<SharedState>, Form(form): Form<CalcAllForm
 async fn img(State(state): State<SharedState>) -> Response {
     let bytes = state.png.lock().unwrap().clone();
     if bytes.is_empty() {
-        return (StatusCode::NOT_FOUND, "no image yet — POST /plot or /calc-all first").into_response();
+        return (
+            StatusCode::NOT_FOUND,
+            "no image yet — POST /plot or /calc-all first",
+        )
+            .into_response();
     }
     Response::builder()
         .status(StatusCode::OK)
@@ -248,16 +393,16 @@ pub async fn run_server() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/", get(home))
+        .route("/intro", get(intro))
         .route("/plot", post(plot))
-        // NEW route
         .route("/calc-all", post(calc_all))
         .route("/img", get(img))
         .with_state(state);
 
+    // unchanged...
     let addr = "127.0.0.1:3000";
     let listener = TcpListener::bind(addr).await?;
     println!("Open http://{addr}/");
-
     axum::serve(listener, app).await?;
     Ok(())
 }

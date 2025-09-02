@@ -1,30 +1,29 @@
-use landau::covering_grids::{
-    covering_grid_bitmap, create_covering_grid, unit_disk_n
-};
-use landau::dyadic::{Dyadic};
-use landau::plot::{plot_covering_grid, plot_set};
-
-use landau::holomorphic::{
-    BoundingSequence, ComplexFunction, ExpansionCoefficients,
-};
-use landau::psi::{generate_all_words, generate_word, m_vec, mu_second, psi_infinity, t_vector};
-use landau::edt::{landau_l_via_edt_from_bitmap, landau_l_with_edt_from_complex_set, print_grid} ;
-use landau::evaluation::{calculate_for_all_words_updated, calculate_for_length, calculate_for_word_updated, sweep_mseq_len3} ;
-use landau::corollary_2::{calculate_epsilon, certify_r_hat_rho};
-
+use std::sync::Arc;
 use std::vec;
 
-use std::sync::Arc;
 use futures::stream::{self, StreamExt};
+use landau::corollary_2::{calculate_epsilon, certify_r_hat_rho};
+use landau::covering_grids::{covering_grid_bitmap, create_covering_grid, unit_disk_n};
+use landau::dyadic::Dyadic;
+use landau::edt::{landau_l_via_edt_from_bitmap, landau_l_with_edt_from_complex_set, print_grid};
+use landau::evaluation::{
+    calculate_for_all_words_updated,
+    calculate_for_length,
+    calculate_for_word_updated,
+    sweep_mseq_len3,
+};
+use landau::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
+use landau::plot::{plot_covering_grid, plot_set};
+use landau::psi::{generate_all_words, generate_word, m_vec, mu_second, psi_infinity, t_vector};
 
 
 pub async fn calculate_random(
     number: usize,
     word_length: i32,
     delta: Dyadic,
-    disk_radius : i32,
+    disk_radius: i32,
 ) -> (Vec<u8>, f64) {
-    let epsilon = delta * Dyadic::new(1, 2) ;
+    let epsilon = delta * Dyadic::new(1, 2);
     let m_seq = vec![
         Dyadic::new(1, -1),
         Dyadic::new(1, -1),
@@ -32,17 +31,17 @@ pub async fn calculate_random(
         Dyadic::new(1, -3),
         Dyadic::new(1, -3),
     ];
-    let m_seq1  = Arc::new(m_seq);
+    let m_seq1 = Arc::new(m_seq);
     let t_seq = Arc::new(t_vector(1000));
     let domain = Arc::new(unit_disk_n(disk_radius));
     let concurrency = num_cpus::get().max(1);
-    println!("Working on {} CPU cores", concurrency) ;
+    println!("Working on {} CPU cores", concurrency);
 
     let mut results = stream::iter(0..number)
         .map(|_| {
             let domain = Arc::clone(&domain);
-            let m_seq  = Arc::clone(&m_seq1);
-            let t_seq  = Arc::clone(&t_seq);
+            let m_seq = Arc::clone(&m_seq1);
+            let t_seq = Arc::clone(&t_seq);
 
             // Heavy CPU work => spawn_blocking keeps the async scheduler happy
             tokio::task::spawn_blocking(move || {
@@ -70,29 +69,28 @@ pub async fn calculate_random(
             })
         })
         .buffer_unordered(concurrency);
-        let mut best_l = f64::INFINITY;
-        let mut best_word: Vec<u8> = vec![];
+    let mut best_l = f64::INFINITY;
+    let mut best_word: Vec<u8> = vec![];
 
-        while let Some(res) = results.next().await {
-            let (l_val, word) = res.expect("worker panicked");
-            if l_val < best_l {
-                best_l = l_val;
-                best_word = word;
-            }
+    while let Some(res) = results.next().await {
+        let (l_val, word) = res.expect("worker panicked");
+        if l_val < best_l {
+            best_l = l_val;
+            best_word = word;
         }
-        (best_word, best_l)
+    }
+    (best_word, best_l)
 }
 
 
 
-
-#[tokio::main(flavor = "multi_thread")] 
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
     landau::ui::run_server().await
 }
 // async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    
-//     let delta      = Dyadic::new(1, -7);    
+
+//     let delta      = Dyadic::new(1, -7);
 //     let m_seq = vec![
 //         Dyadic::new(1, -2),
 //         Dyadic::new(1, -2),
@@ -130,8 +128,8 @@ async fn main() -> anyhow::Result<()> {
 //     plot_covering_grid(&grid, "min_grid.png");
 
 //     let possible_m = vec![
-//         Dyadic::new(3, -1), 
-//         Dyadic::new(1, 0), 
+//         Dyadic::new(3, -1),
+//         Dyadic::new(1, 0),
 //     ];
 //     // let _top3 = sweep_mseq_len3(&possible_m, 6, delta, -7).await;
 //     let val = calculate_for_all_words_updated(3, -1, m_seq2).await;
@@ -142,10 +140,9 @@ async fn main() -> anyhow::Result<()> {
 // }
 // Test to ensure basic operation and functions perform properly. More test can be added as needed.
 #[cfg(test)]
-
-
 mod tests {
-    use landau::dyadic::{ComplexDyadic};
+    use landau::dyadic::ComplexDyadic;
+
     use super::*;
 
     #[test]
@@ -198,8 +195,8 @@ mod tests {
     }
     #[test]
     fn test_epsilon() {
-        let r = 0.95 ;
-        let r_hat = Dyadic::new(127, -7) ;
+        let r = 0.95;
+        let r_hat = Dyadic::new(127, -7);
         println!("{}", r_hat.to_f64());
         let rho = Dyadic::new(1, -4);
         let eps = calculate_epsilon(r, r_hat, rho);
