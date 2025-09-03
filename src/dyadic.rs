@@ -1,7 +1,7 @@
 // use std::intrinsics::sqrtf64;
 use std::cmp::Ordering;
 use std::collections::LinkedList;
-use std::fmt::{self, UpperExp, write};
+use std::fmt::{self};
 use std::hash::Hash;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -454,26 +454,10 @@ impl Interval {
         }
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-
-// Define alphabet of words. This may not be needed anymore
-enum Letter {
-    On,
-    Two,
-    Three,
-    Four,
-}
-
-// This may not be needed anymore
-struct Word {
-    length: i32,
-}
-
 // Implement display methods for defined types
 impl fmt::Display for Dyadic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:.15}", self.to_f64())
-        // Luka: This could be problematic with stricter accuracy requirements
     }
 }
 
