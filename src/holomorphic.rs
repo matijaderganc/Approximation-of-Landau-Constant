@@ -3,7 +3,7 @@ use std::ops::{Add, Sub};
 use crate::dyadic::{ComplexDyadic, Dyadic, add_complex_vec, add_vec, sub_complex_vec};
 
 // Function to map vector to function which returns n-th element.
-pub fn vec_to_sequence(vec: &Vec<Dyadic>) -> impl Fn(u32) -> Dyadic + '_ {
+pub fn vec_to_sequence(vec: &[Dyadic]) -> impl Fn(u32) -> Dyadic + '_ {
     move |n: u32| {
         vec.get(n as usize) // safe, no panic
             .cloned() // use `copied()` if Dyadic implements Copy
@@ -177,7 +177,7 @@ impl ComplexFunction {
         let mut derivative_coefficients: Vec<ComplexDyadic> = Vec::with_capacity(length - 1);
 
         // Calculate the derivative coefficients
-
+        #[allow(clippy::needless_range_loop)]
         for i in 1..length {
             derivative_coefficients.push(
                 coefficients[i] * ComplexDyadic::new(Dyadic::new(i as i128, 0), Dyadic::zero()),
@@ -194,6 +194,7 @@ impl ComplexFunction {
         let sequence = &self.expansion_coefficients.vector;
         let mut antiderivative_sequence = Vec::with_capacity(sequence.len() + 1);
         antiderivative_sequence.push(ComplexDyadic::zero());
+        #[allow(clippy::needless_range_loop)]
         for i in 0..sequence.len() {
             antiderivative_sequence.push(
                 sequence[i] / ComplexDyadic::new(Dyadic::new(i as i128 + 1, 0), Dyadic::zero()),

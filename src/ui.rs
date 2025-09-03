@@ -9,13 +9,15 @@ use axum::{
 };
 use serde::Deserialize;
 use tokio::{net::TcpListener, task};
+use std::time::Instant;
 
-use crate::covering_grids::unit_disk_n;
+use crate::{covering_grids::{covering_grid_bitmap, unit_disk_n}, dyadic::Dyadic};
 // NEW: bring the sweep into scope
 use crate::evaluation::approximate_all_words;
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
 use crate::plot::plot_set;
 use crate::psi::{m_vec, psi_infinity, t_vector};
+use crate::edt::{landau_l_via_edt_from_bitmap};
 
 const CONTACT_EMAIL: &str = "landau@constant.com";
 
@@ -77,6 +79,21 @@ fn nav_html() -> String {
     )
 }
 
+fn escape_html(s: &str) -> String {
+  let mut out = String::with_capacity(s.len());
+  for ch in s.chars() {
+      match ch {
+          '&' => out.push_str("&amp;"),
+          '<' => out.push_str("&lt;"),
+          '>' => out.push_str("&gt;"),
+          '"' => out.push_str("&quot;"),
+          '\'' => out.push_str("&#39;"),
+          _ => out.push(ch),
+      }
+  }
+  out
+}
+
 // Footer with contact email
 fn footer_html() -> String {
     format!(
@@ -124,16 +141,26 @@ struct AppState {
 }
 type SharedState = Arc<AppState>;
 
+
 #[derive(Deserialize)]
 struct PlotForm {
     word: String,
-    acc_n: Option<i32>, // step exponent: step = 2^-acc_n
+    acc_n: Option<i32>, 
 }
 
+const DEFAULT_PLOT_ACC_N: i32 = 7;   // for /plot (step = 2^-n)
+const DEFAULT_CALC_ALL_LEN: usize = 3;
+const DEFAULT_CALC_ALL_STEP: i32 = 1;
+
+fn default_calc_all_len() -> usize { DEFAULT_CALC_ALL_LEN }
+fn default_calc_all_step() -> i32 { DEFAULT_CALC_ALL_STEP }
 #[derive(Deserialize)]
 struct CalcAllForm {
-    length: usize,
-    step: i32, // UI step 1 -> disk_decrease -1
+  #[serde(default = "default_calc_all_len")]
+  length: usize,
+
+  #[serde(default = "default_calc_all_step")]
+  step: i32,
 }
 
 /// Both "1,2,3,4" or "1234" work fine
@@ -156,7 +183,7 @@ async fn home() -> Html<String> {
     let inner = r#"
     <div class="card">
       <h1>Word → image of D<sub>1</sub></h1>
-      <p>Enter a word over <code>{1,2,3,4}</code> to generate the derivative via <code>psi_infinity</code>, integrate to a normalised <code>f</code>, evaluate on a discrete unit disk, and render.</p>
+      <p>Enter a word over <code>{1,2,3,4}</code> to generate the derivative via <code>psi_infinity</code>, integrate to a normalised <code>f</code>, evaluate on a discrete unit disk, create a covering grid of the image and evaluate λ<sub>f</sub> using EDT, then render.</p>
 
       <form method="post" action="/plot">
         <div class="row">
@@ -166,7 +193,7 @@ async fn home() -> Html<String> {
           </div>
           <div>
             <label>Accuracy n (step = 2<sup>−n</sup>)</label>
-            <input type="number" name="acc_n" min="6" max="18" value="10" />
+            <input type="number" name="acc_n" min="6" max="18" value="7" />
           </div>
         </div>
         <p><button type="submit">Plot</button></p>
@@ -175,7 +202,7 @@ async fn home() -> Html<String> {
       <hr/>
 
       <h2>Exhaustive sweep</h2>
-      <p>Try all words of a given length and choose the best image (per your EDT-based objective).</p>
+      <p>Final algorithm: approximate Landau's constant on all words up to (including) selected length. Recieved approximation is up to λ*2^{-step} away from true value, theoretically proven. :)</p>
       <form method="post" action="/calc-all">
         <div class="row">
           <div>
@@ -184,7 +211,7 @@ async fn home() -> Html<String> {
           </div>
           <div>
             <label>Step (UI) → <code>disk_decrease</code></label>
-            <input type="number" name="step" min="1" max="10" value="3" />
+            <input type="number" name="step" min="1" max="10" value="1" />
           </div>
         </div>
         <p><button type="submit">Run sweep</button></p>
@@ -198,8 +225,9 @@ async fn home() -> Html<String> {
 async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> impl IntoResponse {
     // Parse inputs
     let word_vec = parse_word(&form.word);
-    let acc_n_ui = form.acc_n.unwrap_or(5).clamp(3, 18);
-
+    let acc_n_ui = form.acc_n.unwrap_or(DEFAULT_PLOT_ACC_N).clamp(3, 18);
+    let epsilon = Dyadic::new(1, -acc_n_ui) ;
+    let delta = epsilon * Dyadic::new(1, -2);
     let word = form.word.trim().to_string();
     let acc_n_display = match form.acc_n {
         Some(n) => n.to_string(),
@@ -207,11 +235,11 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
     };
 
     // Build inputs for the blocking job
-    let m_seq = Arc::new(m_vec(5));
+    let m_seq = Arc::new(vec![Dyadic::new(1, -1), Dyadic::new(1, -1), Dyadic::new(1, -2), Dyadic::new(1, -2), ]);
     let t_seq = Arc::new(t_vector(1000));
     let word_job = word_vec.clone();
 
-    let res = task::spawn_blocking(move || -> Result<Vec<u8>, String> {
+    let res = task::spawn_blocking(move || -> Result<(Vec<u8>, f64, usize, u128), String> {
         // Build f' and f
         let coeffs = psi_infinity(&m_seq, &t_seq, &word_job);
         let fprime = ComplexFunction::new(
@@ -228,6 +256,19 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
         for &z in &domain {
             img.push(f.eval(&z));
         }
+        let t0 = Instant::now();
+
+        // build covering grid
+        let bitmap = covering_grid_bitmap(&img, epsilon, delta);
+        // If your function returns (bitmap, meta), split it accordingly.
+
+        let grid_points = bitmap.width * bitmap.height; // or bitmap.width * bitmap.height if you have dims
+
+        // >>> run EDT to estimate lambda
+        let lambda_f = landau_l_via_edt_from_bitmap(&bitmap, delta);
+
+        #[allow(clippy::unnecessary_cast)]
+        let elapsed_ms = t0.elapsed().as_millis() as u128;
 
         // Plot to temp path
         let tmpdir = tempfile::tempdir().map_err(|e| e.to_string())?;
@@ -241,31 +282,42 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
         if png_bytes.len() < 8 || &png_bytes[..8] != png_magic {
             return Err(format!("not a PNG ({} bytes)", png_bytes.len()));
         }
-        Ok(png_bytes)
+        Ok((png_bytes, lambda_f, grid_points, elapsed_ms))
     })
     .await;
 
     match res {
-        Ok(Ok(png_bytes)) => {
-            *state.png.lock().unwrap() = png_bytes;
-            let inner = format!(
-                r#"
-              <div class="card">
-                <p><a href="/">← back</a></p>
-                <h1>Result</h1>
-                <p><b>Word:</b> [{word}]</p>
-                <p><b>Accuracy n:</b> {acc_n_display}</p>
-                <figure>
-                  <img alt="plot" src="/img" />
-                  <figcaption>Image of D under f built from your word.</figcaption>
-                </figure>
-              </div>
-            "#
-            );
-            Html(page_html("Landau Explorer — Plot", &inner)).into_response()
+      Ok(Ok((png_bytes, lambda_hat, grid_points, elapsed_ms))) => {
+        {
+            let mut guard = state.png.lock().unwrap();
+            *guard = png_bytes;
         }
-        Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+
+        // Render
+        let inner = format!(
+                  r#"
+        <div class="card">
+        <span class="badge">Plot</span>
+        <h1>Word <code>{word_display}</code>, step = 2<sup>-{acc_n_display}</sup></h1>
+
+        <p style="margin: .25rem 0 1rem; font-size: .95rem;">
+          <strong>λ<sub>f</sub> (EDT):</strong> {lambda:.6}
+          <span style="opacity:.7"> · grid points: {grid_pts} · {elapsed_ms} ms</span>
+        </p>
+
+        <img src="/img" alt="plot" style="width:100%; border-radius:.5rem; border:1px solid rgba(255,255,255,.08)" />
+        </div>
+        "#,
+        word_display = escape_html(&word),
+            acc_n_display = acc_n_display,
+            lambda      = lambda_hat,
+            grid_pts    = grid_points,
+            elapsed_ms  = elapsed_ms,
+        );
+        Html(page_html("Landau Explorer — Plot", &inner)).into_response()
+    }
+    Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 
@@ -294,10 +346,9 @@ async fn intro() -> Html<String> {
       <ul>
         <li><strong>Build</strong> <code>f'</code> from a chosen word via <code>psi_infinity</code>, then compute the antiderivative <code>f</code>.</li>
         <li><strong>Sample</strong> a discrete domain (unit disk at dyadic mesh 2<sup>−n</sup>) and evaluate <code>f</code>.</li>
-        <li><strong>Covering grid</strong>: convert the image set into a bitmap / grid approximation.</li>
-        <li><strong>EDT</strong>: run an Euclidean Distance Transform to estimate the maximal inscribed disk radius
-            <code>l(f(D))</code> (your <code>landau_l_via_edt_from_bitmap</code> pipeline).</li>
-        <li><strong>Sweep</strong>: enumerate words to search for small <code>λ<sub>f</sub></code> and tighten lower bounds.</li>
+        <li><strong>Covering grid</strong>: convert the image set into a bitmap / grid for approximation.</li>
+        <li><strong>EDT</strong>: run an Euclidean Distance Transform to estimate the maximal inscribed disk radius inside each image</li>
+        <li><strong>Approximate</strong>: use many different words to get an accurate approximation of the constant</li>
       </ul>
 
       <h2>Reading colored plots of holomorphic maps</h2>
@@ -324,8 +375,8 @@ async fn calc_all(
     State(state): State<SharedState>,
     Form(form): Form<CalcAllForm>,
 ) -> impl IntoResponse {
-    let length = form.length;
-    let step = form.step.max(1); // guard
+    let length = form.length;        // now defaults to 3 if omitted
+    let step   = form.step; // guard
     let disk_decrease = -step;
 
     // Keep m_seq
@@ -336,7 +387,7 @@ async fn calc_all(
 
     // After the sweep re-plots the best word, try to read the PNG it produced
     // If calculate_for_word_updated writes to a known "plot.png" this will pick it up
-    let png_bytes = std::fs::read("test_grid.png");
+    let png_bytes = std::fs::read("test_image.png");
     match png_bytes {
         Ok(bytes) => {
             *state.png.lock().unwrap() = bytes;

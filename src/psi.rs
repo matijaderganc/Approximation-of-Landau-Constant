@@ -107,7 +107,6 @@ fn dyadic_ceil_with_exp(x: f64, exp: i32) -> Dyadic {
     // scale = 2^{-exp}; if exp = -n, scale = 2^{n}
     let step = (2.0f64).powi(exp); 
     let y = x / step;
-    // Small safety bump to avoid rounding *below* due to FP error
 
     let y_bumped = y + (y.abs() * f64::EPSILON + 1e-18);
     let k = y_bumped.ceil() as i128;
