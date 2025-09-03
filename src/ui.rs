@@ -12,7 +12,7 @@ use tokio::{net::TcpListener, task};
 
 use crate::covering_grids::{unit_disk_n, unit_disk_radius};
 // NEW: bring the sweep into scope
-use crate::evaluation::calculate_for_all_words_updated;
+use crate::evaluation::approximate_all_words;
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
 use crate::plot::plot_set;
 use crate::psi::{m_vec, psi_infinity, t_vector};
