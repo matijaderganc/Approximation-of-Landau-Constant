@@ -10,7 +10,7 @@ use axum::{
 use serde::Deserialize;
 use tokio::{net::TcpListener, task};
 
-use crate::covering_grids::{unit_disk_n, unit_disk_radius};
+use crate::covering_grids::unit_disk_n;
 // NEW: bring the sweep into scope
 use crate::evaluation::approximate_all_words;
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};

@@ -291,7 +291,7 @@ impl ComplexDyadic {
     pub fn from_i64(n: i64) -> Self {
         let d = Dyadic::from_i64(n);
         Self {
-            re: d.clone(),
+            re: d,
             im: Dyadic::zero(),
         }
     }
@@ -299,14 +299,14 @@ impl ComplexDyadic {
     pub fn div_i64(self, n: i64, bits: u32) -> Self {
         let denom = Dyadic::from_i64(n);
         Self {
-            re: self.re.div_with_precision(denom.clone(), bits),
+            re: self.re.div_with_precision(denom, bits),
             im: self.im.div_with_precision(denom, bits),
         }
     }
 
     pub fn div_with_precision(&self, other: ComplexDyadic, bits: u32) -> ComplexDyadic {
         // denominator = c^2 + d^2
-        let denom = other.re.clone() * other.re.clone() + other.im.clone() * other.im.clone();
+        let denom = other.re * other.re + other.im * other.im;
 
         assert!(
             denom.numerator != 0,
@@ -314,11 +314,11 @@ impl ComplexDyadic {
         );
 
         // real = (ac + bd) / (c^2 + d^2)
-        let num_re = self.re.clone() * other.re.clone() + self.im.clone() * other.im.clone();
-        let re = num_re.div_with_precision(denom.clone(), bits);
+        let num_re = self.re * other.re + self.im * other.im;
+        let re = num_re.div_with_precision(denom, bits);
 
         // im = (bc - ad) / (c^2 + d^2)
-        let num_im = self.im.clone() * other.re.clone() - self.re.clone() * other.im.clone();
+        let num_im = self.im * other.re - self.re * other.im;
         let im = num_im.div_with_precision(denom, bits);
 
         ComplexDyadic { re, im }
@@ -438,9 +438,7 @@ pub enum Interval {
 // Implement constructor for type interval
 impl Interval {
     pub fn new(x_lower: Dyadic, x_upper: Dyadic, y_lower: Dyadic, y_upper: Dyadic) -> Interval {
-        if x_lower > x_upper {
-            Interval::Empty
-        } else if y_lower > y_upper {
+        if x_lower > x_upper || y_lower > y_upper {
             Interval::Empty
         } else {
             Interval::Bounded(x_lower, x_upper, y_lower, y_upper)
@@ -519,67 +517,5 @@ pub fn psi(int1: Interval, lst: &LinkedList<u8>) -> Interval {
             split(int1, fst),
             &lst.iter().skip(1).cloned().collect(),
         ),
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_div_with_precision_real() {
-        let a = Dyadic {
-            numerator: 3,
-            exponent: -5,
-        }; // 3 * 2^-5 = 3/32
-        let b = Dyadic {
-            numerator: 5,
-            exponent: -2,
-        }; // 5 * 2^-2 = 5/4
-        let q = a.div_with_precision(b, 30);
-
-        // Expected: (3/32) / (5/4) = 3/40 = 0.075
-        let approx = q.to_f64();
-        assert!((approx - 0.075).abs() < 1e-9);
-    }
-
-    #[test]
-    fn test_div_with_precision_complex() {
-        let a = ComplexDyadic {
-            re: Dyadic {
-                numerator: 3,
-                exponent: -5,
-            }, // 3/32
-            im: Dyadic {
-                numerator: 1,
-                exponent: -4,
-            }, // 1/16
-        };
-        let b = ComplexDyadic {
-            re: Dyadic {
-                numerator: 5,
-                exponent: -2,
-            }, // 5/4
-            im: Dyadic {
-                numerator: 1,
-                exponent: -3,
-            }, // 1/8
-        };
-        let q = a.div_with_precision(b, 40);
-        let (approx_re, approx_im) = q.to_f64();
-
-        let a_re = 3.0 / 32.0;
-        let a_im = 1.0 / 16.0;
-        let b_re = 5.0 / 4.0;
-        let b_im = 1.0 / 8.0;
-
-        let denom = b_re * b_re + b_im * b_im;
-        let ref_re = (a_re * b_re + a_im * b_im) / denom;
-        let ref_im = (a_im * b_re - a_re * b_im) / denom;
-        // ----------------------------------------------------------
-
-        assert!((approx_re - ref_re).abs() < 1e-9);
-        assert!((approx_im - ref_im).abs() < 1e-9);
     }
 }

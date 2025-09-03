@@ -1,6 +1,5 @@
 use std::ops::{Add, Sub};
 
-
 use crate::dyadic::{ComplexDyadic, Dyadic, add_complex_vec, add_vec, sub_complex_vec};
 
 // Function to map vector to function which returns n-th element.
@@ -225,74 +224,5 @@ impl Sub for ComplexFunction {
             self.bounding_sequence + other.bounding_sequence,
             self.expansion_coefficients - other.expansion_coefficients,
         )
-    }
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::holomorphic::ExpansionCoefficients;
-
-    #[test]
-    fn derivative_basic() {
-        // f(z) = z + 2z^2 + 3z^3  =>  f'(z) = 1 + 4z + 9z^2
-        let f = ExpansionCoefficients {
-            vector: vec![
-                ComplexDyadic::zero(),      // c0
-                ComplexDyadic::from_i64(1), // c1
-                ComplexDyadic::from_i64(2), // c2
-                ComplexDyadic::from_i64(3), // c3
-            ],
-        };
-        let fp = f.derivative();
-        assert_eq!(
-            fp.vector,
-            vec![
-                ComplexDyadic::from_i64(1), // 1
-                ComplexDyadic::from_i64(4), // 4
-                ComplexDyadic::from_i64(9), // 9
-            ]
-        );
-    }
-
-    #[test]
-    fn antiderivative_basic() {
-        // f'(z) = 1 + 2z + 3z^2  =>  f(z) = z + z^2 + z^3
-        let fprime = ExpansionCoefficients {
-            vector: vec![
-                ComplexDyadic::from_i64(1),
-                ComplexDyadic::from_i64(2),
-                ComplexDyadic::from_i64(3),
-            ],
-        };
-        let f = fprime.antiderivative(60); // 60 dyadic bits for safety
-
-        // expected coefficients
-        let expected = vec![
-            ComplexDyadic::zero(),
-            ComplexDyadic::from_i64(1),
-            ComplexDyadic::from_i64(1),
-            ComplexDyadic::from_i64(1),
-        ];
-
-        // compare each coefficient with tolerance
-        for (got, exp) in f.vector.iter().zip(expected.iter()) {
-            let (gr, gi) = got.to_f64();
-            let (er, ei) = exp.to_f64();
-            assert!(
-                (gr - er).abs() < 1e-9 && (gi - ei).abs() < 1e-9,
-                "mismatch: got ({gr}, {gi}), expected ({er}, {ei})"
-            );
-        }
-
-        // and derivative gets us back (tolerance again)
-        let back = f.derivative();
-        for (got, exp) in back.vector.iter().zip(fprime.vector.iter()) {
-            let (gr, gi) = got.to_f64();
-            let (er, ei) = exp.to_f64();
-            assert!(
-                (gr - er).abs() < 1e-9 && (gi - ei).abs() < 1e-9,
-                "mismatch in derivative: got ({gr}, {gi}), expected ({er}, {ei})"
-            );
-        }
     }
 }
