@@ -62,7 +62,7 @@ pub fn plot_set(
         .build_cartesian_2d(x_min..x_max, y_min..y_max)?;
 
     chart.configure_mesh()
-        .light_line_style(&RGBAColor(255, 255, 255, 16.0)) // very faint grid
+        .light_line_style(RGBAColor(255, 255, 255, 16.0)) // very faint grid
         .label_style(("sans-serif", 12).into_font().color(&RGBColor(170, 176, 190)))
         .draw()?;
 

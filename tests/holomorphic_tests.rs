@@ -179,3 +179,47 @@ fn derivative_and_antiderivative_inverse() {
         assert!((gr - er).abs() < 1e-9 && (gi - ei).abs() < 1e-9);
     }
 }
+
+#[test]
+fn complex_function_eval_and_derivative_consistency() {
+    // f(z) = 1 + 2z + 3z^2
+    let f_coeffs = ExpansionCoefficients {
+        vector: vec![
+            ComplexDyadic::from_i64(1),
+            ComplexDyadic::from_i64(2),
+            ComplexDyadic::from_i64(3),
+        ],
+    };
+    // Bounding sequence values are not used by eval/derivative algebra itself here,
+    // just provide a small vector of positives.
+    let bs = BoundingSequence {
+        vector: vec![Dyadic::from_i64(1); 4],
+    };
+
+    let f = ComplexFunction::new(bs.clone(), f_coeffs.clone());
+    let fp = f.derivative();
+    let got: Vec<(f64, f64)> = fp
+        .expansion_coefficients
+        .vector
+        .iter()
+        .map(|c| c.to_f64())
+        .collect();
+    let want = [(2.0, 0.0), (6.0, 0.0)];
+    for (g, w) in got.iter().zip(want.iter()) {
+        assert!((g.0 - w.0).abs() < 1e-12 && (g.1 - w.1).abs() < 1e-12);
+    }
+
+    // Check Horner eval against direct polynomial at z = 1/2 + i/4
+    let z = ComplexDyadic::new(Dyadic::new(1, -1), Dyadic::new(1, -2));
+    let (zr, zi) = z.to_f64();
+    let (fr, fi) = f.eval(&z).to_f64();
+    let (er, ei) = {
+        // 1 + 2z + 3z^2 in f64
+        let z2r = zr * zr - zi * zi;
+        let z2i = 2.0 * zr * zi;
+        let rr = 1.0 + 2.0 * zr + 3.0 * z2r;
+        let ii = 0.0 + 2.0 * zi + 3.0 * z2i;
+        (rr, ii)
+    };
+    assert!((fr - er).abs() < 1e-12 && (fi - ei).abs() < 1e-12);
+}

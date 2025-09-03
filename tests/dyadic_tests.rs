@@ -1,4 +1,8 @@
+use std::collections::LinkedList;
+
+use landau::dyadic::Interval;
 use landau::dyadic::{ComplexDyadic, Dyadic};
+use landau::dyadic::{add_complex_vec, add_vec, psi};
 
 #[test]
 fn addition_dyadic() {
@@ -67,6 +71,35 @@ fn test_div_with_precision_complex() {
     assert!((approx_im - ref_im).abs() < 1e-9);
 }
 
+#[test]
+fn dyadic_reduction_and_equality() {
+    // 4 * 2^(-2) == 1
+    assert_eq!(Dyadic::new(4, -2).reduce(), Dyadic::new(1, 0));
+    // Unreduced equal values compare equal
+    assert_eq!(Dyadic::new(8, -3), Dyadic::new(1, 0));
+    // Negative values, different (n,e) same product
+    assert_eq!(Dyadic::new(-6, 1), Dyadic::new(-3, 2));
+}
+
+#[test]
+fn dyadic_approximate_bound_and_shape() {
+    // Should choose an exponent within ±max and be finite
+    let d = Dyadic::approximate(0.3, 6);
+    assert!(d.exponent.unsigned_abs() <= 6);
+    let v = d.to_f64();
+    assert!(v.is_finite());
+}
+
+#[test]
+fn complex_division_multiplication_inverse() {
+    // (z1 / z2) * z2 ≈ z1 for z2 ≠ 0
+    let z1 = ComplexDyadic::new(Dyadic::new(3, -2), Dyadic::new(5, -3));
+    let z2 = ComplexDyadic::new(Dyadic::new(7, -3), Dyadic::new(-1, -2));
+    let back = (z1 / z2) * z2;
+    let (br, bi) = back.to_f64();
+    let (r, i) = z1.to_f64();
+    assert!((br - r).abs() < 1e-8 && (bi - i).abs() < 1e-8);
+}
 
 #[test]
 fn complex_multiplication_matches_f64() {
@@ -130,4 +163,44 @@ fn complex_abs_matches_pythagoras() {
         let abs = z.abs();
         assert!((abs * abs - (re * re + im * im)).abs() < 1e-12);
     }
+}
+
+#[test]
+fn vector_ops_handle_mismatched_lengths() {
+    let a = vec![Dyadic::new(1, 0), Dyadic::new(1, -1)]; // [1, 0.5]
+    let b = vec![Dyadic::new(3, 0)]; // [3]
+    let sum = add_vec(&a, &b); // [4, 0.5]
+    assert_eq!(sum.len(), 2);
+    assert_eq!(sum[0], Dyadic::new(4, 0));
+    assert_eq!(sum[1], Dyadic::new(1, -1));
+
+    let ac = vec![
+        ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(1, -1)),
+        ComplexDyadic::new(Dyadic::new(0, 0), Dyadic::new(1, -2)),
+    ];
+    let bc = vec![ComplexDyadic::new(Dyadic::new(2, 0), Dyadic::new(0, 0))];
+    let sumc = add_complex_vec(&ac, &bc);
+    assert_eq!(sumc.len(), 2);
+    let (r0, i0) = sumc[0].to_f64();
+    assert!((r0 - 3.0).abs() < 1e-12 && (i0 - 0.5).abs() < 1e-12);
+    let (r1, i1) = sumc[1].to_f64();
+    assert!((r1 - 0.0).abs() < 1e-12 && (i1 - 0.25).abs() < 1e-12);
+}
+
+#[test]
+fn interval_split_and_psi_midpoint() {
+    // Start with unit square [0,1] x [0,1]
+    let unit = Interval::new(
+        Dyadic::new(0, 0),
+        Dyadic::new(1, 0),
+        Dyadic::new(0, 0),
+        Dyadic::new(1, 0),
+    );
+    // Choose quadrant 4 (upper-right): x∈[0.5,1], y∈[0.5,1]
+    let mut word = LinkedList::new();
+    word.push_back(4);
+    let sub = psi(unit, &word);
+    let mid = sub.midpoint().expect("not empty");
+    let (x, y) = mid.to_f64();
+    assert!(x >= 0.5 && x <= 1.0 && y >= 0.5 && y <= 1.0);
 }

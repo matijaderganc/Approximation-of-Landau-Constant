@@ -100,7 +100,7 @@ pub fn print_grid(label: &str, img: &[f64], w: usize, h: usize, sqrt: bool) {
     println!();
 }
 
-/// Compute l(ε,δ,G) in linear time using your EDT, from a grid of ComplexDyadic.
+/// Compute l(ε,δ,G) in linear time using EDT, from a grid of ComplexDyadic.
 /// - `grid`: your image set G as lattice points (ComplexDyadic snapped by δ when plotting).
 /// - `delta`: the lattice step δ (Dyadic).
 ///

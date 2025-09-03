@@ -19,10 +19,11 @@ pub fn comp_vec_to_sequence(vec: Vec<ComplexDyadic>) -> impl Fn(u32) -> ComplexD
     }
 }
 // Define the bounding sequences, used to limit the set of all sequences. By definition, the series (m_i)p^i converges for all p from [0, 1).
+// This sequence is a sequence of Dyadic numbers (I hope)
 // It may be necessary to expand this implementation, depending on needs.
 #[derive(Clone)]
 pub struct BoundingSequence {
-    vector: Vec<Dyadic>,
+    pub vector: Vec<Dyadic>,
 }
 
 // Used to add two BoundingSequences together
@@ -87,7 +88,7 @@ impl ExpansionCoefficients {
         let mut out = Vec::with_capacity(n - 1);
         for k in 1..n {
             let factor = ComplexDyadic::from_i64(k as i64);
-            out.push(self.vector[k].clone() * factor);
+            out.push(self.vector[k] * factor);
         }
 
         ExpansionCoefficients { vector: out }
@@ -102,7 +103,7 @@ impl ExpansionCoefficients {
         out.push(ComplexDyadic::zero());
 
         for k in 0..n {
-            out.push(self.vector[k].clone().div_i64((k as i64) + 1, bits));
+            out.push(self.vector[k].div_i64((k as i64) + 1, bits));
         }
 
         ExpansionCoefficients { vector: out }
@@ -112,7 +113,7 @@ impl ExpansionCoefficients {
     pub fn eval(&self, z: &ComplexDyadic) -> ComplexDyadic {
         let mut acc = ComplexDyadic::zero();
         for coeff in self.vector.iter().rev() {
-            acc = acc * z.clone() + coeff.clone();
+            acc = acc * *z + *coeff;
         }
         acc
     }
@@ -164,7 +165,7 @@ impl ComplexFunction {
     pub fn eval(&self, z: &ComplexDyadic) -> ComplexDyadic {
         let mut acc = ComplexDyadic::zero();
         for coeff in self.expansion_coefficients.vector.iter().rev() {
-            acc = acc * z.clone() + coeff.clone();
+            acc = acc * *z + *coeff;
         }
         acc
     }
