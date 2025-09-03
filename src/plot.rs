@@ -1,11 +1,10 @@
 use std::collections::HashSet;
 use std::f64::consts::PI;
 
-use image::{DynamicImage, ImageBuffer, Rgba, RgbaImage};
 use plotters::prelude::*;
 
 use crate::covering_grids::extreme_points;
-use crate::dyadic::{ComplexDyadic, Dyadic};
+use crate::dyadic::ComplexDyadic;
 
 
 

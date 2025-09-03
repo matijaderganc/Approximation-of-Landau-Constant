@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 use std::f64;
+
+use crate::covering_grids::GridBitmap;
 use crate::dyadic::{ComplexDyadic, Dyadic};
-use crate::covering_grids::{GridBitmap} ;
 
 // Felzenszwalb & Huttenlocher (2004), "Distance Transforms of Sampled Functions"
 // Given f[q] where f[p]=0 for "sources" and f[p]=∞ elsewhere, returns
@@ -10,11 +11,11 @@ const INF: f64 = 1e20;
 
 pub fn edt_1d_squared(f: &[f64]) -> Vec<f64> {
     let n = f.len();
-    let mut v = vec![0usize; n];                // positions of parabolas in envelope
+    let mut v = vec![0usize; n]; // positions of parabolas in envelope
     let mut z = vec![f64::NEG_INFINITY; n + 1]; // breakpoints between parabolas
-    let mut g = vec![0f64; n];                  // output
+    let mut g = vec![0f64; n]; // output
 
-    let mut k: usize = 0;   // number of parabolas in envelope - 1
+    let mut k: usize = 0; // number of parabolas in envelope - 1
     v[0] = 0;
     z[0] = f64::NEG_INFINITY;
     z[1] = f64::INFINITY;
@@ -38,14 +39,17 @@ pub fn edt_1d_squared(f: &[f64]) -> Vec<f64> {
 
     // Evaluate envelope
     k = 0;
-    #[allow(clippy::needless_range_loop)] //clippy is an annoying bastard and doesnt allow needless range loops :(
+    #[allow(clippy::needless_range_loop)]
+    //clippy is an annoying bastard and doesnt allow needless range loops :(
     for q in 0..n {
-        while z[k + 1] < q as f64 { k += 1; }
+        while z[k + 1] < q as f64 {
+            k += 1;
+        }
         let p = v[k];
         let dq = q as f64 - p as f64;
         g[q] = dq * dq + f[p];
     }
-    
+
     g
 }
 
@@ -56,10 +60,14 @@ pub fn edt_2d_squared(img: &mut [f64], width: usize, height: usize) {
         let mut col = vec![0.0; height];
         let mut out = vec![0.0; height];
         for x in 0..width {
-            for y in 0..height { col[y] = img[y * width + x]; }
+            for y in 0..height {
+                col[y] = img[y * width + x];
+            }
             let tmp = edt_1d_squared(&col);
             out.copy_from_slice(&tmp);
-            for y in 0..height { img[y * width + x] = out[y]; }
+            for y in 0..height {
+                img[y * width + x] = out[y];
+            }
         }
     }
     // second pass: rows
@@ -67,10 +75,14 @@ pub fn edt_2d_squared(img: &mut [f64], width: usize, height: usize) {
         let mut row = vec![0.0; width];
         let mut out = vec![0.0; width];
         for y in 0..height {
-            for x in 0..width { row[x] = img[y * width + x]; }
+            for x in 0..width {
+                row[x] = img[y * width + x];
+            }
             let tmp = edt_1d_squared(&row);
             out.copy_from_slice(&tmp);
-            for x in 0..width { img[y * width + x] = out[x]; }
+            for x in 0..width {
+                img[y * width + x] = out[x];
+            }
         }
     }
 }
@@ -79,7 +91,7 @@ pub fn print_grid(label: &str, img: &[f64], w: usize, h: usize, sqrt: bool) {
     println!("{label}:");
     for y in 0..h {
         for x in 0..w {
-            let v = img[y*w + x];
+            let v = img[y * w + x];
             let v = if sqrt { v.sqrt() } else { v };
             print!("{:4.0}", v);
         }
@@ -97,16 +109,13 @@ pub fn print_grid(label: &str, img: &[f64], w: usize, h: usize, sqrt: bool) {
 /// 2) build a dense field over a 1-cell padded bbox: 0.0 on complement, INF on inside
 /// 3) run edt_2d_squared in-place (squared distances to nearest complement)
 /// 4) read max distance over INSIDE sites, convert to metric: δ + δ * sqrt(max_sq)
-pub fn landau_l_with_edt_from_complex_set(
-    grid: &HashSet<ComplexDyadic>,
-    delta: Dyadic,
-) -> f64 {
+pub fn landau_l_with_edt_from_complex_set(grid: &HashSet<ComplexDyadic>, delta: Dyadic) -> f64 {
     assert!(!grid.is_empty(), "grid is empty");
 
     // --- 1) snap to δ-lattice (i,j) ---
     let step = delta.to_f64();
-    let inv  = 1.0 / step;
-    let mut lattice: HashSet<(i32,i32)> = HashSet::with_capacity(grid.len());
+    let inv = 1.0 / step;
+    let mut lattice: HashSet<(i32, i32)> = HashSet::with_capacity(grid.len());
     for z in grid {
         let i = (z.re.to_f64() * inv).round() as i32;
         let j = (z.im.to_f64() * inv).round() as i32;
@@ -116,14 +125,25 @@ pub fn landau_l_with_edt_from_complex_set(
     // --- 2) padded bbox so complement exists on border ---
     let (mut min_i, mut max_i, mut min_j, mut max_j) = (i32::MAX, i32::MIN, i32::MAX, i32::MIN);
     for &(i, j) in &lattice {
-        if i < min_i { min_i = i; }
-        if i > max_i { max_i = i; }
-        if j < min_j { min_j = j; }
-        if j > max_j { max_j = j; }
+        if i < min_i {
+            min_i = i;
+        }
+        if i > max_i {
+            max_i = i;
+        }
+        if j < min_j {
+            min_j = j;
+        }
+        if j > max_j {
+            max_j = j;
+        }
     }
-    min_i -= 1; max_i += 1; min_j -= 1; max_j += 1;
+    min_i -= 1;
+    max_i += 1;
+    min_j -= 1;
+    max_j += 1;
 
-    let width  = (max_i - min_i + 1) as usize;
+    let width = (max_i - min_i + 1) as usize;
     let height = (max_j - min_j + 1) as usize;
 
     // --- 3) dense field: 0.0 at complement, INF at inside ---
@@ -157,7 +177,9 @@ pub fn landau_l_via_edt_from_bitmap(g: &GridBitmap, delta: Dyadic) -> f64 {
     // Build the EDT field: 0 at complement, INF at inside
     let mut field = vec![0.0f64; g.width * g.height];
     for (idx, &pix) in g.data.iter().enumerate() {
-        if pix != 0 { field[idx] = INF; }
+        if pix != 0 {
+            field[idx] = INF;
+        }
     }
 
     // Exact squared Euclidean distances, in-place
@@ -168,7 +190,9 @@ pub fn landau_l_via_edt_from_bitmap(g: &GridBitmap, delta: Dyadic) -> f64 {
     for (idx, &pix) in g.data.iter().enumerate() {
         if pix != 0 {
             let d2 = field[idx];
-            if d2.is_finite() && d2 > max_sq { max_sq = d2; }
+            if d2.is_finite() && d2 > max_sq {
+                max_sq = d2;
+            }
         }
     }
 

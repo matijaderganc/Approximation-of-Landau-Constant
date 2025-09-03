@@ -44,7 +44,9 @@ impl Dyadic {
 
     // Reduce a dyadic number by dividing numerator and increasing exponent. Two dyadics which are equal when reduced, are viewed as the same dyadics, forming an equivalence class. This should also be called after every operation to ensure we keep the numerator as small as possible.
     pub fn reduce(self) -> Dyadic {
-        if self.numerator == 0 { return Dyadic::zero(); }
+        if self.numerator == 0 {
+            return Dyadic::zero();
+        }
         let mut n = self.numerator;
         let mut e = self.exponent;
         while n % 2 == 0 {
@@ -269,7 +271,7 @@ impl ComplexDyadic {
         }
 
         fast_pow(self, power)
-    }    
+    }
 
     pub fn one() -> ComplexDyadic {
         ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0))
@@ -315,7 +317,7 @@ impl ComplexDyadic {
         let num_re = self.re.clone() * other.re.clone() + self.im.clone() * other.im.clone();
         let re = num_re.div_with_precision(denom.clone(), bits);
 
-        // imag = (bc - ad) / (c^2 + d^2)
+        // im = (bc - ad) / (c^2 + d^2)
         let num_im = self.im.clone() * other.re.clone() - self.re.clone() * other.im.clone();
         let im = num_im.div_with_precision(denom, bits);
 
@@ -524,7 +526,6 @@ pub fn psi(int1: Interval, lst: &LinkedList<u8>) -> Interval {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::holomorphic::ExpansionCoefficients;
 
     #[test]
     fn test_div_with_precision_real() {

@@ -10,20 +10,15 @@ use axum::{
 use serde::Deserialize;
 use tokio::{net::TcpListener, task};
 
-use crate::covering_grids::{unit_disk_n, unit_disk_radius};
-// NEW: bring the sweep into scope
+use crate::covering_grids::unit_disk_n;
 use crate::evaluation::calculate_for_all_words_updated;
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
 use crate::plot::plot_set;
 use crate::psi::{m_vec, psi_infinity, t_vector};
 
+const CONTACT_EMAIL: &str = "landau@constant.com";
 
-// --- NEW: site-wide layout helpers and constants ---
-
-// Change this to your real contact address:
-const CONTACT_EMAIL: &str = "contact@example.com";
-
-// Common CSS for all pages (kept close to your original styles)
+// CSS for all pages
 fn common_css() -> &'static str {
     r#"
     :root { --bg:#0a0b10; --fg:#e6e9ef; --muted:#a0a7b4; --card:#131522; --brand:#7aa2ff; --accent:#99e2b4 }
@@ -64,7 +59,7 @@ fn common_css() -> &'static str {
     "#
 }
 
-// Small top navigation used by all pages
+// Navigation html code
 fn nav_html() -> String {
     format!(
         r#"
@@ -121,7 +116,7 @@ fn page_html(title: &str, inner: &str) -> String {
 }
 
 
-/// Shared app state: store the most recent PNG bytes (simple demo).
+/// Shared app state: store the most recent PNG bytes
 #[derive(Default)]
 struct AppState {
     png: Mutex<Vec<u8>>,
@@ -134,14 +129,13 @@ struct PlotForm {
     acc_n: Option<i32>, // step exponent: step = 2^-acc_n
 }
 
-// NEW: form for the sweep window
 #[derive(Deserialize)]
 struct CalcAllForm {
     length: usize,
     step: i32, // UI step 1 -> disk_decrease -1
 }
 
-/// Accept either "1,2,3,4" or "1234"
+/// Both "1,2,3,4" or "1234" work fine
 fn parse_word(input: &str) -> Vec<u8> {
     if input.contains(',') || input.contains(' ') {
         input
@@ -203,7 +197,6 @@ async fn home() -> Html<String> {
 async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> impl IntoResponse {
     // Parse inputs
     let word_vec = parse_word(&form.word);
-    let word_disp = format!("{:?}", word_vec);
     let acc_n_ui = form.acc_n.unwrap_or(5).clamp(3, 18);
 
     let word = form.word.trim().to_string();
@@ -212,13 +205,13 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
         None => "(default)".to_string(),
     };
 
-    // Build inputs for the blocking job (as in your code)
+    // Build inputs for the blocking job
     let m_seq = Arc::new(m_vec(5));
     let t_seq = Arc::new(t_vector(1000));
     let word_job = word_vec.clone();
 
     let res = task::spawn_blocking(move || -> Result<Vec<u8>, String> {
-        // 1) Build f' and f
+        // Build f' and f
         let coeffs = psi_infinity(&m_seq, &t_seq, &word_job);
         let fprime = ComplexFunction::new(
             BoundingSequence::new((*m_seq).clone()),
@@ -226,22 +219,22 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
         );
         let f = fprime.antiderivative();
 
-        // 2) Domain: unit disk of radius 1.0, with step = 2^-acc_n_ui
+        // Create unit disk of radius 1.0, with step = 2^-acc_n_ui
         let domain = unit_disk_n(-acc_n_ui);
 
-        // 3) Evaluate
+        // Evaluate function
         let mut img = Vec::with_capacity(domain.len());
         for &z in &domain {
             img.push(f.eval(&z));
         }
 
-        // 4) Plot to temp path (let plot_set create the file)
+        // Plot to temp path
         let tmpdir = tempfile::tempdir().map_err(|e| e.to_string())?;
         let path = tmpdir.path().join("plot.png");
         plot_set(&img, path.to_str().ok_or("invalid temp path")?)
             .map_err(|e| format!("plot_set failed: {e}"))?;
 
-        // 5) Read bytes back
+        // Read file
         let png_bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
         let png_magic: &[u8] = b"\x89PNG\r\n\x1a\n";
         if png_bytes.len() < 8 || &png_bytes[..8] != png_magic {
@@ -279,26 +272,26 @@ async fn intro() -> Html<String> {
     let inner = r#"
     <div class="card">
       <span class="badge">Overview</span>
-      <h1>Introduction to Landau’s constant and this app</h1>
+      <h1>Introduction to Landau's constant and this app</h1>
       <p>
-        <strong>Landau’s constant</strong> λ is the largest universal c &gt; 0 such that for every holomorphic function
-        <code>f</code> on a disk <code>D<sub>r</sub>(z₀)</code> with <code>f′(z₀) ≠ 0</code>, the image <code>f(D<sub>r</sub>(z₀))</code> contains
-        a Euclidean disk of radius <code>|f′(z₀)| · r · c</code>. The <em>supremum</em> of such c is λ. Known bounds are
+        <strong>Landau's constant</strong> λ is the largest universal c &gt; 0 such that for every holomorphic function
+        <code>f</code> on a disk <code>D<sub>r</sub>(z₀)</code> with <code>f'(z₀) ≠ 0</code>, the image <code>f(D<sub>r</sub>(z₀))</code> contains
+        a Euclidean disk of radius <code>|f'(z₀)| · r · c</code>. The <em>supremum</em> of such c is λ. Known bounds are
         <code>0.5 &lt; λ ≤ 0.54325…</code>. The exact value is unknown, but it is computably approximable.
       </p>
 
       <h2>Algorithmic idea (Rettinger, 2012)</h2>
       <p>
-        The key is to work with <em>normalised</em> functions (f(0)=0, f′(0)=1) represented via a derivative
+        The key is to work with <em>normalised</em> functions (f(0)=0, f'(0)=1) represented via a derivative
         power series with bounded coefficients. A word over {1,2,3,4} selects nested intervals to produce
-        the coefficients (your <code>psi_infinity</code>), yielding <code>f′</code>. Integrating gives <code>f</code>.
+        the coefficients (your <code>psi_infinity</code>), yielding <code>f'</code>. Integrating gives <code>f</code>.
         For a fixed <code>f</code>, we estimate <code>λ<sub>f</sub> = l(f(D))</code>, the radius of the largest disk contained
         in the image <code>f(D)</code>. Taking an infimum over a compact, well-chosen class yields λ.
       </p>
 
       <h2>What this app does</h2>
       <ul>
-        <li><strong>Build</strong> <code>f′</code> from a chosen word via <code>psi_infinity</code>, then compute the antiderivative <code>f</code>.</li>
+        <li><strong>Build</strong> <code>f'</code> from a chosen word via <code>psi_infinity</code>, then compute the antiderivative <code>f</code>.</li>
         <li><strong>Sample</strong> a discrete domain (unit disk at dyadic mesh 2<sup>−n</sup>) and evaluate <code>f</code>.</li>
         <li><strong>Covering grid</strong>: convert the image set into a bitmap / grid approximation.</li>
         <li><strong>EDT</strong>: run an Euclidean Distance Transform to estimate the maximal inscribed disk radius
@@ -317,7 +310,7 @@ async fn intro() -> Html<String> {
 
       <h2>Reference</h2>
       <p>
-        R. Rettinger (2012), <em>On Computable Approximations of Landau’s Constant</em>, Logical Methods
+        R. Rettinger (2012), <em>On Computable Approximations of Landau's Constant</em>, Logical Methods
         in Computer Science, 8(4:15), 1–11. <a href="https://lmcs.episciences.org/1189/pdf" target="_blank" rel="noopener">PDF</a>
       </p>
     </div>
@@ -326,7 +319,6 @@ async fn intro() -> Html<String> {
     Html(page_html("Landau Explorer — Introduction", inner))
 }
 
-// NEW: sweep handler
 async fn calc_all(
     State(state): State<SharedState>,
     Form(form): Form<CalcAllForm>,
@@ -335,14 +327,14 @@ async fn calc_all(
     let step = form.step.max(1); // guard
     let disk_decrease = -step;
 
-    // Keep m_seq "as usual"
+    // Keep m_seq
     let m_seq = m_vec(5);
 
     // Run the async sweep (it re-runs the best word with plotting enabled inside)
     let approx = approximate_all_words(length, disk_decrease, m_seq).await;
 
-    // After the sweep re-plots the best word, try to read the PNG it produced.
-    // If your calculate_for_word_updated writes to a known "plot.png", this will pick it up.
+    // After the sweep re-plots the best word, try to read the PNG it produced
+    // If calculate_for_word_updated writes to a known "plot.png" this will pick it up
     let png_bytes = std::fs::read("test_grid.png");
     match png_bytes {
         Ok(bytes) => {
@@ -399,7 +391,6 @@ pub async fn run_server() -> anyhow::Result<()> {
         .route("/img", get(img))
         .with_state(state);
 
-    // unchanged...
     let addr = "127.0.0.1:3000";
     let listener = TcpListener::bind(addr).await?;
     println!("Open http://{addr}/");
