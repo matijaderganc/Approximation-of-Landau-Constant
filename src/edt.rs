@@ -51,7 +51,7 @@ pub fn edt_1d_squared(f: &[f64]) -> Vec<f64> {
 
 
 pub fn edt_2d_squared(img: &mut [f64], width: usize, height: usize) {
-    // pass A: columns
+    // first pass: columns
     {
         let mut col = vec![0.0; height];
         let mut out = vec![0.0; height];
@@ -62,7 +62,7 @@ pub fn edt_2d_squared(img: &mut [f64], width: usize, height: usize) {
             for y in 0..height { img[y * width + x] = out[y]; }
         }
     }
-    // pass B: rows  <-- UNCOMMENT THIS WHOLE BLOCK
+    // second pass: rows
     {
         let mut row = vec![0.0; width];
         let mut out = vec![0.0; width];

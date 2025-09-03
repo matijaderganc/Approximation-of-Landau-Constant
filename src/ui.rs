@@ -339,7 +339,7 @@ async fn calc_all(
     let m_seq = m_vec(5);
 
     // Run the async sweep (it re-runs the best word with plotting enabled inside)
-    let approx = calculate_for_all_words_updated(length, disk_decrease, m_seq).await;
+    let approx = approximate_all_words(length, disk_decrease, m_seq).await;
 
     // After the sweep re-plots the best word, try to read the PNG it produced.
     // If your calculate_for_word_updated writes to a known "plot.png", this will pick it up.

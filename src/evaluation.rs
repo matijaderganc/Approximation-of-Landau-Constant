@@ -9,12 +9,80 @@ use crate::covering_grids::{covering_grid_bitmap, unit_disk_n, unit_disk_radius,
 use crate::dyadic::{Dyadic, ComplexDyadic};
 use crate::edt::landau_l_via_edt_from_bitmap;
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
-use crate::psi::{psi_infinity, t_vector, generate_all_words};
+use crate::psi::{psi_infinity, t_vector, generate_all_words, generate_word};
 use crate::plot::{plot_covering_grid, plot_set};
 
+/// calculate_random approximates value of lambda for a "number" number of words on length word_length, on
+/// given delta for grid generation and disk_accuracy for a unit disk domain
+pub async fn calculate_random(
+    number: usize,
+    word_length: i32,
+    delta: Dyadic,
+    disk_accuracy : i32,
+) -> (Vec<u8>, f64) {
+    let epsilon = delta * Dyadic::new(1, 2) ;
+    let m_seq = vec![
+        Dyadic::new(1, -1),
+        Dyadic::new(1, -1),
+        Dyadic::new(1, -2),
+        Dyadic::new(1, -3),
+        Dyadic::new(1, -3),
+    ];
+    let m_seq1  = Arc::new(m_seq);
+    let t_seq = Arc::new(t_vector(1000));
+    let domain = Arc::new(unit_disk_n(disk_accuracy));
+    let concurrency = num_cpus::get().max(1);
+    println!("Working on {} CPU cores", concurrency) ;
 
-// calculate_for_length evaluates lambda_f values for grids size delta using EDT algorithm. For the domain
-// it takes the standard disk with size 1. This is not exactly as the article suggests, but it is a good approximation none the less.
+    let mut results = stream::iter(0..number)
+        .map(|_| {
+            let domain = Arc::clone(&domain);
+            let m_seq  = Arc::clone(&m_seq1);
+            let t_seq  = Arc::clone(&t_seq);
+
+            // Heavy CPU work => spawn_blocking keeps the async scheduler happy
+            tokio::task::spawn_blocking(move || {
+                // --- build a random function ---
+                let word = generate_word(word_length);
+                let coeffs = psi_infinity(&m_seq, &t_seq, &word);
+
+                let fprime = ComplexFunction::new(
+                    BoundingSequence::new((*m_seq).clone()),
+                    ExpansionCoefficients::new(coeffs),
+                );
+                let f = fprime.antiderivative();
+
+                // --- eval on domain ---
+                let mut img = Vec::with_capacity(domain.len());
+                for &z in domain.iter() {
+                    img.push(f.eval(&z));
+                }
+
+                // --- EDT path you asked for ---
+                let grid_bitmap = covering_grid_bitmap(&img, epsilon, delta);
+                let l_val = landau_l_via_edt_from_bitmap(&grid_bitmap, delta);
+
+                (l_val, word)
+            })
+        })
+        .buffer_unordered(concurrency);
+        let mut best_l = f64::INFINITY;
+        let mut best_word: Vec<u8> = vec![];
+
+        while let Some(res) = results.next().await {
+            let (l_val, word) = res.expect("worker panicked");
+            if l_val < best_l {
+                best_l = l_val;
+                best_word = word;
+            }
+        }
+        (best_word, best_l)
+}
+
+
+
+/// calculate_for_length evaluates lambda_f values for grids size delta using EDT algorithm. For the domain
+/// it takes the standard disk with size 1. This is not exactly as the article suggests, but it is a good approximation none the less.
 pub async fn calculate_for_length(
     length: usize,
     delta: Dyadic,
@@ -74,14 +142,16 @@ pub async fn calculate_for_length(
 
  }
 
- // This part was only used partially in order to evaluate performance of different m_sequences. It evaluates the calculate_for_length
- // on all possible m_sequences formed by given dyadics (seq of finite length) and returns ones with best approximations. Currently not in use.
+ /**  
+This part was only used partially in order to evaluate performance of different m_sequences. It evaluates the calculate_for_length
+on all possible m_sequences formed by given dyadics (seq of finite length) and returns ones with best approximations. Currently not in use.
+*/
 struct MSeqResult {
     m_seq: Vec<Dyadic>,
     word: Vec<u8>,
     approx: f64,
 }
-
+/// Saves top_k smallest values in a vector of MSeq, helper function
 fn keep_top_k(top: &mut Vec<MSeqResult>, entry: MSeqResult, k: usize) {
     top.push(entry);
     top.sort_by(|a, b| a.approx.partial_cmp(&b.approx).unwrap_or(Ordering::Equal));
@@ -90,6 +160,7 @@ fn keep_top_k(top: &mut Vec<MSeqResult>, entry: MSeqResult, k: usize) {
     }
 }
 
+/// Used to check different m sequences, sweeps through all combinations of length 3 vectors, where each value is one of possible_m elements (Dyadics).
 pub async fn sweep_mseq_len3(
     possible_m: &[Dyadic],
     length: usize,
@@ -157,9 +228,9 @@ fn minimal_pow2_step_below(eps: Dyadic) -> (i32, Dyadic) {
 }
 
 
-// calculates the approximation for a certain word on a disk with radius 1-2^(-n), as described in corollary 2. We currently use this
-// this one only evaluates one word, disk_decrease tells us what radius we use for domain. We can also choose to plot results. We do that
-// inside of the function because visualisation helps us understand if the sets are being evaluated properly.
+/// calculates the approximation for a certain word on a disk with radius 1-2^(-n), as described in corollary 2. We currently use this
+/// this one only evaluates one word, disk_decrease tells us what radius we use for domain. We can also choose to plot results. We do that
+/// inside of the function because visualisation helps us understand if the sets are being evaluated properly.
 pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_seq : Vec<Dyadic>, plot : bool) -> f64 {
     let r_dy = (Dyadic::new(1, 0) - Dyadic::new(1, disk_decrease)).reduce();
     let r_f = r_dy.to_f64() ; 
@@ -178,7 +249,7 @@ pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_s
         // we calculate r_hat, rho as described in article. This later gives us epsilon, so we can complute sufficient epsilon covering grid
         let (r_hat, rho) = certify_r_hat_rho(r_dy, &fprime, n_samples, 30, 30) ;
         let mut eps = calculate_epsilon(r_f, r_hat, rho);
-        let min_eps = Dyadic::new(1, -6); // THIS IS CUSTOM FIX!!!
+        let min_eps = Dyadic::new(1, -6); // a custom fix for faster runtimes now
         if eps < min_eps {
             eps = min_eps;
         }
@@ -204,17 +275,18 @@ pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_s
     .expect("worker panicked")
 }
 
-pub async fn calculate_for_all_words_updated(
+
+/// approximates Landau's constant as minimum of all values on words specific lenght, evaluated on domain of disk with radius 1 - disk_decrease
+pub async fn approximate_all_words_length(
     length: usize,
     disk_decrease: i32,
-    m_seq: Vec<Dyadic>,
-) -> f64 {
+    m_seq: Vec<Dyadic>
+) -> (f64, Vec<u8>) {
     let words: Vec<Vec<u8>> = generate_all_words(length);
 
     let mut best_l = f64::INFINITY;
     let mut best_word: Vec<u8> = Vec::new();
 
-    // Evaluate each word (no plots during the sweep)
     for w in &words {
         let l = calculate_for_word_updated(w.clone(), disk_decrease, m_seq.clone(), false).await;
         if l < best_l {
@@ -222,10 +294,35 @@ pub async fn calculate_for_all_words_updated(
             best_word = w.clone();
         }
     }
+    (best_l, best_word)
+}
 
-    // Re-run the best one with plotting enabled
+/// approximates Landau's constant as minimum of all values on words with length up or equal to max_length, evaluated on domain of disk with radius 1 - disk_decrease (step)
+pub async fn approximate_all_words(max_length: usize,
+    disk_decrease: i32,
+    m_seq: Vec<Dyadic>) -> f64 {
+        let mut best_l = f64::INFINITY;
+        let mut best_word: Vec<u8> = Vec::new();
+        for n in 1..(max_length+1) {
+            let mut len_best = f64::INFINITY;
+            let mut len_best_word: Vec<u8> = Vec::new();
+            let words: Vec<Vec<u8>> = generate_all_words(n);
+            for w in &words {
+                let l = calculate_for_word_updated(w.clone(), disk_decrease, m_seq.clone(), false).await;
+                if l < len_best {
+                    len_best = l;
+                    len_best_word = w.clone();
+                }
+            }
+            if len_best < best_l {
+                best_l = len_best ;
+                best_word = len_best_word.clone() ;
+            }
+        }
+        // We also plot the image of best word for visualisation
     let _ = calculate_for_word_updated(best_word.clone(), disk_decrease, m_seq.clone(), true).await;
 
-    println!("Best word (len {}): {:?}\nMin approx = {}", length, best_word, best_l);
+    println!("Best word: {:?}\nMin approx = {}", best_word, best_l);
     best_l
-}
+    }
+

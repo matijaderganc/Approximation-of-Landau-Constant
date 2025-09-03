@@ -92,9 +92,6 @@ pub fn plot_covering_grid(
     let max_imag = extremes[3].im.to_f64() + 1.0;
     let root = BitMapBackend::new(filename, (600, 600)).into_drawing_area();
     root.fill(&WHITE)?;
-
-    let range = -5.1f64..5.1f64;
-
     let mut chart = ChartBuilder::on(&root)
         .caption("ε-Covering Grid", ("sans-serif", 30))
         .margin(20)
