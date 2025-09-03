@@ -201,7 +201,7 @@ async fn home() -> Html<String> {
 
       <hr/>
 
-      <h2>Exhaustive sweep</h2>
+      <h2>Approximate the constant</h2>
       <p>Final algorithm: approximate Landau's constant on all words up to (including) selected length. Recieved approximation is up to λ*2^{-step} away from true value, theoretically proven. :)</p>
       <form method="post" action="/calc-all">
         <div class="row">
