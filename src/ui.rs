@@ -13,7 +13,7 @@ use std::time::Instant;
 
 use crate::{covering_grids::{covering_grid_bitmap, unit_disk_n}, dyadic::Dyadic};
 // NEW: bring the sweep into scope
-use crate::evaluation::approximate_all_words;
+use crate::evaluation::{approximate_all_words, calculate_random};
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
 use crate::plot::plot_set;
 use crate::psi::{m_vec, psi_infinity, t_vector};
@@ -64,19 +64,20 @@ fn common_css() -> &'static str {
 
 // Navigation html code
 fn nav_html() -> String {
-    format!(
-        r#"
-    <div class="nav">
-      <div class="nav-inner">
-        <a class="brand" href="/">Landau Explorer</a>
-        <div class="links">
-          <a href="/">Home</a>
-          <a href="/intro">Introduction</a>
-        </div>
+  format!(
+      r#"
+  <div class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/">Landau Explorer</a>
+      <div class="links">
+        <a href="/">Home</a>
+        <a href="/intro">Introduction</a>
+        <a href="/random">Random words</a>
       </div>
     </div>
-    "#
-    )
+  </div>
+  "#
+  )
 }
 
 fn escape_html(s: &str) -> String {
@@ -148,6 +149,13 @@ struct PlotForm {
     acc_n: Option<i32>, 
 }
 
+#[derive(Deserialize)]
+struct RandomForm {
+  length: usize,   // word length
+  number: usize,   // how many random words to try
+  acc_n: i32,      // disk accuracy n (step = 2^{-n})
+}
+
 const DEFAULT_PLOT_ACC_N: i32 = 7;   // for /plot (step = 2^-n)
 const DEFAULT_CALC_ALL_LEN: usize = 3;
 const DEFAULT_CALC_ALL_STEP: i32 = 1;
@@ -177,6 +185,33 @@ fn parse_word(input: &str) -> Vec<u8> {
             .filter_map(|c| c.to_digit(10).map(|d| d as u8))
             .collect()
     }
+}
+async fn random_page() -> Html<String> {
+  let inner = r#"
+  <div class="card">
+    <h1>Random words</h1>
+    <p>Generate a batch of random words, evaluate λ<sub>f</sub> via EDT, and plot the best one.</p>
+
+    <form method="post" action="/random-run">
+      <div class="row">
+        <div>
+          <label>Word length</label>
+          <input type="number" name="length" min="1" max="1000" value="3" required />
+        </div>
+        <div>
+          <label>Number of words</label>
+          <input type="number" name="number" min="1" max="10000000" value="100" required />
+        </div>
+        <div>
+          <label>Disk accuracy n (step = 2<sup>−n</sup>)</label>
+          <input type="number" name="acc_n" min="6" max="18" value="7" required />
+        </div>
+      </div>
+      <p><button type="submit">Run random search</button></p>
+    </form>
+  </div>
+  "#;
+  Html(page_html("Landau Explorer — Random", inner))
 }
 
 async fn home() -> Html<String> {
@@ -272,7 +307,7 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
 
         // Plot to temp path
         let tmpdir = tempfile::tempdir().map_err(|e| e.to_string())?;
-        let path = tmpdir.path().join("plot.png");
+        let path = tmpdir.path().join("random_plot.png");
         plot_set(&img, path.to_str().ok_or("invalid temp path")?)
             .map_err(|e| format!("plot_set failed: {e}"))?;
 
@@ -393,7 +428,6 @@ async fn calc_all(
     let approx = approximate_all_words(length, disk_decrease, m_seq).await;
 
     // After the sweep re-plots the best word, try to read the PNG it produced
-    // If calculate_for_word_updated writes to a known "plot.png" this will pick it up
     let png_bytes = std::fs::read("test_image.png");
     match png_bytes {
         Ok(bytes) => {
@@ -417,7 +451,7 @@ async fn calc_all(
         }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Sweep done (best ≈ {approx:.12}), but couldn't read plot.png: {e}"),
+            format!("Sweep done (best ≈ {approx:.12}), but couldn't read random_plot.png: {e}"),
         )
             .into_response(),
     }
@@ -443,16 +477,69 @@ pub async fn run_server() -> anyhow::Result<()> {
     let state: SharedState = Arc::new(AppState::default());
 
     let app = Router::new()
-        .route("/", get(home))
-        .route("/intro", get(intro))
-        .route("/plot", post(plot))
-        .route("/calc-all", post(calc_all))
-        .route("/img", get(img))
-        .with_state(state);
+      .route("/", get(home))
+      .route("/intro", get(intro))
+      .route("/random", get(random_page))          // ← NEW
+      .route("/random-run", post(random_run))      // ← NEW
+      .route("/plot", post(plot))
+      .route("/calc-all", post(calc_all))
+      .route("/img", get(img))
+      .with_state(state);
 
     let addr = "127.0.0.1:3000";
     let listener = TcpListener::bind(addr).await?;
     println!("Open http://{addr}/");
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+async fn random_run(
+  State(state): State<SharedState>,
+  Form(form): Form<RandomForm>,
+) -> impl IntoResponse {
+  let t0 = Instant::now();
+
+  // Match your plotting page’s convention:
+  // epsilon = 2^(-acc_n), delta = epsilon * 2^-2 = 2^(-(acc_n+2))
+  let acc_n = form.acc_n.clamp(3, 18);
+  let delta = Dyadic::new(1, -(acc_n + 2));
+
+  // This will now also PLOT the best image to "random_plot.png" (see evaluation::calculate_random below)
+  let (best_word, best_l) = calculate_random(form.number, form.length as i32, delta, -acc_n).await;
+
+  // Load that image into in-memory PNG for /img
+  match std::fs::read("random_plot.png") {
+      Ok(bytes) => {
+          *state.png.lock().unwrap() = bytes;
+
+          let elapsed_ms = t0.elapsed().as_millis() as u128;
+          let best_display = format!("{:?}", best_word);
+
+          let inner = format!(r#"
+          <div class="card">
+            <h1>Random words — result</h1>
+            <p><b>Word length:</b> {length}<br/>
+               <b>Number of words:</b> {number}<br/>
+               <b>Accuracy:</b> n = {acc_n} (step = 2<sup>−{acc_n}</sup>)<br/>
+               <b>Best word:</b> {best_display}<br/>
+               <b>Best approximation:</b> {best_l:.12}<br/>
+               <b>Time:</b> {elapsed_ms} ms
+            </p>
+            <figure>
+              <img alt="plot" src="/img" />
+              <figcaption>Image of D<sub>1</sub> for the best random word.</figcaption>
+            </figure>
+          </div>
+          "#,
+          length=form.length, number=form.number, acc_n=acc_n,
+          best_display=escape_html(&best_display),
+          best_l=best_l, elapsed_ms=elapsed_ms);
+
+          Html(page_html("Landau Explorer — Random result", &inner)).into_response()
+      }
+      Err(e) => (
+          StatusCode::INTERNAL_SERVER_ERROR,
+          format!("Random search finished (best ≈ {best_l:.12}), but couldn't read random_plot.png: {e}"),
+      ).into_response(),
+  }
 }

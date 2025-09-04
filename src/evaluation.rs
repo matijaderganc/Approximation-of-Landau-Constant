@@ -18,64 +18,89 @@ pub async fn calculate_random(
     number: usize,
     word_length: i32,
     delta: Dyadic,
-    disk_accuracy : i32,
+    disk_accuracy: i32,
 ) -> (Vec<u8>, f64) {
-    let epsilon = delta * Dyadic::new(1, 2) ;
-    let m_seq = vec![
+    // δ = delta (grid step); ε must be 4δ in your pipeline
+    let epsilon = (delta * Dyadic::new(1, 2)).reduce(); // == delta * 4
+
+    // Shared, read-only inputs
+    let m_seq = Arc::new(vec![
         Dyadic::new(1, -1),
         Dyadic::new(1, -1),
         Dyadic::new(1, -2),
         Dyadic::new(1, -3),
         Dyadic::new(1, -3),
-    ];
-    let m_seq1  = Arc::new(m_seq);
-    let t_seq = Arc::new(t_vector(1000));
-    let domain = Arc::new(unit_disk_n(disk_accuracy));
-    let concurrency = num_cpus::get().max(1);
+    ]);
+    let t_seq   = Arc::new(t_vector(1000));
+    let domain  = Arc::new(unit_disk_n(disk_accuracy));
 
+    // Bound in-flight jobs to #logical cores (good default for CPU-bound work)
+    let parallelism = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4);
+
+    // Kick off N trials; each trial runs on a blocking worker thread.
     let mut results = stream::iter(0..number)
         .map(|_| {
             let domain = Arc::clone(&domain);
-            let m_seq  = Arc::clone(&m_seq1);
+            let m_seq  = Arc::clone(&m_seq);
             let t_seq  = Arc::clone(&t_seq);
-
-            // Heavy CPU work => spawn_blocking keeps the async scheduler happy
             tokio::task::spawn_blocking(move || {
-                // --- build a random function ---
-                let word = generate_word(word_length);
+                // 1) Random word → f
+                let word   = generate_word(word_length);
                 let coeffs = psi_infinity(&m_seq, &t_seq, &word);
-
                 let fprime = ComplexFunction::new(
                     BoundingSequence::new((*m_seq).clone()),
                     ExpansionCoefficients::new(coeffs),
                 );
                 let f = fprime.antiderivative();
 
-                // --- eval on domain ---
+                // 2) Evaluate f on domain (single-threaded inside the job)
+                // If `ComplexFunction` is Sync + Send, you can switch to Rayon here.
                 let mut img = Vec::with_capacity(domain.len());
                 for &z in domain.iter() {
                     img.push(f.eval(&z));
                 }
 
-                // --- EDT path you asked for ---
+                // 3) Build bitset bitmap at δ with ε-neighborhood and run disk-backed EDT
                 let grid_bitmap = covering_grid_bitmap(&img, epsilon, delta);
                 let l_val = landau_l_via_edt_from_bitmap(&grid_bitmap, delta);
 
                 (l_val, word)
             })
         })
-        .buffer_unordered(concurrency);
-        let mut best_l = f64::INFINITY;
-        let mut best_word: Vec<u8> = vec![];
+        .buffer_unordered(parallelism);
 
-        while let Some(res) = results.next().await {
-            let (l_val, word) = res.expect("worker panicked");
-            if l_val < best_l {
-                best_l = l_val;
-                best_word = word;
-            }
+    // Reduce to the best (min) λ over all trials
+    let mut best_l = f64::INFINITY;
+    let mut best_word: Vec<u8> = vec![];
+
+    while let Some(res) = results.next().await {
+        let (l_val, word) = res.expect("worker panicked");
+        if l_val < best_l {
+            best_l = l_val;
+            best_word = word;
         }
-        (best_word, best_l)
+    }
+
+    // Re-run the best word once more and plot (same as your original)
+    {
+        let coeffs = psi_infinity(&m_seq, &t_seq, &best_word);
+        let fprime = ComplexFunction::new(
+            BoundingSequence::new((*m_seq).clone()),
+            ExpansionCoefficients::new(coeffs),
+        );
+        let f = fprime.antiderivative();
+
+        let domain_again = unit_disk_n(disk_accuracy);
+        let mut img = Vec::with_capacity(domain_again.len());
+        for &z in &domain_again {
+            img.push(f.eval(&z));
+        }
+        let _ = plot_set(&img, "random_plot.png");
+    }
+
+    (best_word, best_l)
 }
 
 
