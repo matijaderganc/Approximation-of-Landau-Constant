@@ -22,6 +22,8 @@ pub fn calculate_epsilon(r: f64, r_hat: Dyadic, rho: Dyadic) -> Dyadic {
     let e: i32 = cap_f.log2().floor() as i32;
     let delta = Dyadic::new(1, e).reduce();
     (rho * delta * Dyadic::new(1, -4)).reduce()
+    // (rho * delta * Dyadic::new(1, -4)).reduce()
+
 }
 
 ///  we floor dyadic numbers

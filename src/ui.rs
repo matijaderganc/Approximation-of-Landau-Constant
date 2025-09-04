@@ -360,11 +360,18 @@ async fn intro() -> Html<String> {
         swaps the point plotter for a per-pixel shader over the sampled domain. This provides us with more information that would otherwise be available with a simple plot.
       </p>
 
+      <h2>Current problems</h2>
+      <p>
+        The algorithm requires very precise covering grids even in the earliest steps (epsilon requirements in Corollary 2). This means
+        we very quickly reach grids with billions and billions of points, very difficult to store on computer RAM, while also keeping calculation very expensive. 
+        This means algorithm cannot run on steps after 1, at least not on our current laptop computers. 
+      </p>  
+      
       <h2>Reference</h2>
       <p>
         R. Rettinger (2012), <em>On Computable Approximations of Landau's Constant</em>, Logical Methods
         in Computer Science, 8(4:15), 1–11. <a href="https://lmcs.episciences.org/1189/pdf" target="_blank" rel="noopener">PDF</a>
-      </p>
+      </p>  
     </div>
   "#;
 

@@ -299,3 +299,4 @@ pub fn bitmap_to_complex_set(g: &GridBitmap, delta: Dyadic) -> HashSet<ComplexDy
 
     out
 }
+

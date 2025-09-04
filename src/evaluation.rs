@@ -5,9 +5,9 @@ use futures::stream::{self, StreamExt};
 use num_cpus;
 
 use crate::corollary_2::{certify_r_hat_rho, calculate_epsilon};
-use crate::covering_grids::{covering_grid_bitmap, unit_disk_n, unit_disk_radius, create_covering_grid};
+use crate::covering_grids::{covering_grid_bitmap, create_covering_grid, unit_disk_n, unit_disk_radius};
 use crate::dyadic::{Dyadic, ComplexDyadic};
-use crate::edt::landau_l_via_edt_from_bitmap;
+use crate::edt::{landau_l_via_edt_from_bitmap};
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
 use crate::psi::{psi_infinity, t_vector, generate_all_words, generate_word};
 use crate::plot::{plot_covering_grid, plot_set};
@@ -32,7 +32,6 @@ pub async fn calculate_random(
     let t_seq = Arc::new(t_vector(1000));
     let domain = Arc::new(unit_disk_n(disk_accuracy));
     let concurrency = num_cpus::get().max(1);
-    println!("Working on {} CPU cores", concurrency) ;
 
     let mut results = stream::iter(0..number)
         .map(|_| {
@@ -248,8 +247,8 @@ pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_s
         
         // we calculate r_hat, rho as described in article. This later gives us epsilon, so we can complute sufficient epsilon covering grid
         let (r_hat, rho) = certify_r_hat_rho(r_dy, &fprime, n_samples, 30, 30) ;
-        let mut eps = calculate_epsilon(r_f, r_hat, rho);
-        let min_eps = Dyadic::new(1, -6); // a custom fix for faster runtimes now
+        let mut eps = calculate_epsilon(r_f, r_hat, rho) * Dyadic::new(1, 2);
+        let min_eps = Dyadic::new(1, -8); // a custom fix for now
         if eps < min_eps {
             eps = min_eps;
         }
@@ -262,6 +261,7 @@ pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_s
             img.push(f.eval(&z));
         } 
         let grid_bitmap = covering_grid_bitmap(&img, eps, delta);
+        // println!("{}", grid_bitmap.height * grid_bitmap.width);
         let l_val = landau_l_via_edt_from_bitmap(&grid_bitmap, delta);
         if plot {
             println!("{}, {} is eps, delta", eps.to_f64(), delta.to_f64());
@@ -298,31 +298,70 @@ pub async fn approximate_all_words_length(
 }
 
 /// approximates Landau's constant as minimum of all values on words with length up or equal to max_length, evaluated on domain of disk with radius 1 - disk_decrease (step)
-pub async fn approximate_all_words(max_length: usize,
+pub async fn approximate_all_words(
+    max_length: usize,
     disk_decrease: i32,
-    m_seq: Vec<Dyadic>) -> f64 {
-        let mut best_l = f64::INFINITY;
-        let mut best_word: Vec<u8> = Vec::new();
-        for n in 1..(max_length+1) {
-            let mut len_best = f64::INFINITY;
-            let mut len_best_word: Vec<u8> = Vec::new();
-            let words: Vec<Vec<u8>> = generate_all_words(n);
-            for w in &words {
-                let l = calculate_for_word_updated(w.clone(), disk_decrease, m_seq.clone(), false).await;
-                if l < len_best {
-                    len_best = l;
-                    len_best_word = w.clone();
-                }
+    m_seq: Vec<Dyadic>,
+) -> f64 {
+    let parallelism = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4);
+
+    let m_seq = Arc::new(m_seq);
+
+    let mut best_l = f64::INFINITY;
+    let mut best_word: Vec<u8> = Vec::new();
+
+    for n in 1..=max_length {
+        let words: Vec<Vec<u8>> = generate_all_words(n);
+
+        let mut len_best = f64::INFINITY;
+        let mut len_best_word: Vec<u8> = Vec::new();
+
+        // Kick off all evaluations for this length, but bound how many run at once.
+        let mut futs = stream::iter(words.into_iter().map(|w| {
+            let m_seq = m_seq.clone();
+            async move {
+                let l = calculate_for_word_updated(
+                    w.clone(),
+                    disk_decrease,
+                    (*m_seq).clone(),
+                    /*plot:*/ false,
+                ).await;
+                (w, l)
             }
-            if len_best < best_l {
-                best_l = len_best ;
-                best_word = len_best_word.clone() ;
+        }))
+        .buffer_unordered(parallelism);
+
+        // Reduce to the best word for this length
+        while let Some((w, l)) = futs.next().await {
+            if l < len_best {
+                len_best = l;
+                len_best_word = w;
             }
         }
-        // We also plot the image of best word for visualisation
-    let _ = calculate_for_word_updated(best_word.clone(), disk_decrease, m_seq.clone(), true).await;
+
+        // Update global best
+        if len_best < best_l {
+            best_l = len_best;
+            best_word = len_best_word;
+        }
+    }
+
+    // Plot the global best (same as your original)
+    let _ = calculate_for_word_updated(
+        best_word.clone(),
+        disk_decrease,
+        (*m_seq).clone(),
+        /*plot:*/ true,
+    ).await;
 
     println!("Best word: {:?}\nMin approx = {}", best_word, best_l);
     best_l
-    }
+}
+
+
+
+
+
 

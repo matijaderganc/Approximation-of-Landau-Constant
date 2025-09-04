@@ -16,3 +16,5 @@ base64 = "0.22"
 axum = { version = "0.7", features = ["macros"] }
 num-complex = "0.4"
 image = { version = "0.25", features = ["png"] }
+memmap2 = "0.9"
+bitvec = "1" 
