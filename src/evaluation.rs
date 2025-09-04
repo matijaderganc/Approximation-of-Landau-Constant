@@ -4,13 +4,18 @@ use std::sync::Arc;
 use futures::stream::{self, StreamExt};
 use num_cpus;
 
-use crate::corollary_2::{certify_r_hat_rho, calculate_epsilon};
-use crate::covering_grids::{covering_grid_bitmap, create_covering_grid, unit_disk_n, unit_disk_radius};
-use crate::dyadic::{Dyadic, ComplexDyadic};
-use crate::edt::{landau_l_via_edt_from_bitmap};
+use crate::corollary_2::{calculate_epsilon, certify_r_hat_rho};
+use crate::covering_grids::{
+    covering_grid_bitmap,
+    create_covering_grid,
+    unit_disk_n,
+    unit_disk_radius,
+};
+use crate::dyadic::{ComplexDyadic, Dyadic};
+use crate::edt::landau_l_via_edt_from_bitmap;
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
-use crate::psi::{psi_infinity, t_vector, generate_all_words, generate_word};
 use crate::plot::{plot_covering_grid, plot_set};
+use crate::psi::{generate_all_words, generate_word, psi_infinity, t_vector};
 
 /// calculate_random approximates value of lambda for a "number" number of words on length word_length, on
 /// given delta for grid generation and disk_accuracy for a unit disk domain. Uses multiple cores for faster computing.
@@ -30,21 +35,21 @@ pub async fn calculate_random(
         Dyadic::new(1, -3),
     ]);
 
-    let t_seq   = Arc::new(t_vector(1000));
-    let domain  = Arc::new(unit_disk_n(disk_accuracy));
+    let t_seq = Arc::new(t_vector(1000));
+    let domain = Arc::new(unit_disk_n(disk_accuracy));
 
     let parallelism = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4);
 
-        let mut results = stream::iter(0..number)
+    let mut results = stream::iter(0..number)
         .map(|_| {
             let domain = Arc::clone(&domain);
-            let m_seq  = Arc::clone(&m_seq);
-            let t_seq  = Arc::clone(&t_seq);
+            let m_seq = Arc::clone(&m_seq);
+            let t_seq = Arc::clone(&t_seq);
             tokio::task::spawn_blocking(move || {
-                // 1) Random word → f
-                let word   = generate_word(word_length);
+                // Random word -> f
+                let word = generate_word(word_length);
                 let coeffs = psi_infinity(&m_seq, &t_seq, &word);
                 let fprime = ComplexFunction::new(
                     BoundingSequence::new((*m_seq).clone()),
@@ -52,14 +57,13 @@ pub async fn calculate_random(
                 );
                 let f = fprime.antiderivative();
 
-                // 2) Evaluate f on domain (single-threaded inside the job)
-                // If `ComplexFunction` is Sync + Send, you can switch to Rayon here.
+                // Evaluate f on domain (single-threaded inside the job)
                 let mut img = Vec::with_capacity(domain.len());
                 for &z in domain.iter() {
                     img.push(f.eval(&z));
                 }
 
-                // 3) Build bitset bitmap at δ with ε-neighborhood and run disk-backed EDT
+                // Build bitset bitmap at δ with ε-neighborhood and run disk-backed EDT
                 let grid_bitmap = covering_grid_bitmap(&img, epsilon, delta);
                 let l_val = landau_l_via_edt_from_bitmap(&grid_bitmap, delta);
 
@@ -108,11 +112,11 @@ pub async fn calculate_for_length(
     length: usize,
     delta: Dyadic,
     disk_accuracy: i32,
-    m_seq : Vec<Dyadic>,
+    m_seq: Vec<Dyadic>,
 ) -> (Vec<u8>, f64) {
-    let epsilon = delta * Dyadic::new(1, 2) ;
-    
-    let m_seq1  = Arc::new(m_seq);
+    let epsilon = delta * Dyadic::new(1, 2);
+
+    let m_seq1 = Arc::new(m_seq);
     let t_seq = Arc::new(t_vector(100));
     let domain = Arc::new(unit_disk_n(disk_accuracy));
     let concurrency = num_cpus::get().max(1);
@@ -121,8 +125,8 @@ pub async fn calculate_for_length(
     let mut results = stream::iter(words.into_iter())
         .map(|word| {
             let domain = Arc::clone(&domain);
-            let m_seq2  = Arc::clone(&m_seq1);
-            let t_seq  = Arc::clone(&t_seq);
+            let m_seq2 = Arc::clone(&m_seq1);
+            let t_seq = Arc::clone(&t_seq);
 
             tokio::task::spawn_blocking(move || {
                 let coeffs = psi_infinity(&m_seq2, &t_seq, &word);
@@ -160,10 +164,9 @@ pub async fn calculate_for_length(
     }
 
     (best_word, best_l)
+}
 
- }
-
- /**  
+/**
 This part was only used partially in order to evaluate performance of different m_sequences. It evaluates the calculate_for_length
 on all possible m_sequences formed by given dyadics (seq of finite length) and returns ones with best approximations. Currently not in use.
 */
@@ -194,18 +197,18 @@ pub async fn sweep_mseq_len3(
     for i in 0..n {
         for j in 0..n {
             for k in 0..n {
-                let m_seq = vec![
-                    possible_m[i],
-                    possible_m[j],
-                    possible_m[k],
-                ];
+                let m_seq = vec![possible_m[i], possible_m[j], possible_m[k]];
 
                 let (best_word, best_l) =
                     calculate_for_length(length, delta, disk_radius, m_seq.clone()).await;
 
                 keep_top_k(
                     &mut top3,
-                    MSeqResult { m_seq, word: best_word, approx: best_l },
+                    MSeqResult {
+                        m_seq,
+                        word: best_word,
+                        approx: best_l,
+                    },
                     3,
                 );
             }
@@ -229,15 +232,14 @@ pub async fn sweep_mseq_len3(
         );
     }
 
-    top3
-        .into_iter()
+    top3.into_iter()
         .map(|e| (e.m_seq, e.word, e.approx))
         .collect()
 }
 // we just use this to calculate disk_accuracy needed, epsilon/2 is fine as points arent spread out too far apart
 fn minimal_pow2_step_below(eps: Dyadic) -> (i32, Dyadic) {
     assert!(eps > Dyadic::zero(), "eps must be > 0");
-    
+
     let mut n = (-eps.to_f64().log2()).ceil() as i32;
     // assure strict inequality
     let mut step = Dyadic::new(1, -n).reduce(); // 2^{-n}
@@ -245,19 +247,24 @@ fn minimal_pow2_step_below(eps: Dyadic) -> (i32, Dyadic) {
         n += 1;
         step = Dyadic::new(1, -n).reduce();
     }
-    (-n-1, step)
+    (-n - 1, step)
 }
 
 
 /// calculates the approximation for a certain word on a disk with radius 1-2^(-n), as described in corollary 2. We currently use this
 /// this one only evaluates one word, disk_decrease tells us what radius we use for domain. We can also choose to plot results. We do that
 /// inside of the function because visualisation helps us understand if the sets are being evaluated properly.
-pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_seq : Vec<Dyadic>, plot : bool) -> f64 {
+pub async fn calculate_for_word_updated(
+    word: Vec<u8>,
+    disk_decrease: i32,
+    m_seq: Vec<Dyadic>,
+    plot: bool,
+) -> f64 {
     let r_dy = (Dyadic::new(1, 0) - Dyadic::new(1, disk_decrease)).reduce();
-    let r_f = r_dy.to_f64() ; 
-    let m_seq1  = Arc::new(m_seq);
+    let r_f = r_dy.to_f64();
+    let m_seq1 = Arc::new(m_seq);
     let t_seq = Arc::new(t_vector(100)); // Could be bigger, but for now 100 is MORE than enough
-    let n_samples = 500 ; //subject to change, used to evaluate rho as described in Lemma 6
+    let n_samples = 500; //subject to change, used to evaluate rho as described in Lemma 6
     tokio::task::spawn_blocking(move || {
         // Build f' from the word, then integrate to f
         let coeffs = psi_infinity(&m_seq1, &t_seq, &word);
@@ -266,33 +273,40 @@ pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_s
             ExpansionCoefficients::new(coeffs),
         );
         let f = fprime.antiderivative();
-        
+
         // we calculate r_hat, rho as described in article. This later gives us epsilon, so we can complute sufficient epsilon covering grid
-        let (r_hat, rho) = certify_r_hat_rho(r_dy, &fprime, n_samples, 30, 30) ;
+        let (r_hat, rho) = certify_r_hat_rho(r_dy, &fprime, n_samples, 30, 30);
         let mut eps = calculate_epsilon(r_f, r_hat, rho) * Dyadic::new(1, 2);
         let min_eps = Dyadic::new(1, -8); // a custom fix for now
         if eps < min_eps {
             eps = min_eps;
         }
-        assert!(eps > Dyadic::zero(), "ε came out zero; cannot proceed");
+        assert!(
+            eps > Dyadic::zero(),
+            "ε came out zero; cannot proceed"
+        );
         let delta = (eps * Dyadic::new(1, -2)).reduce();
         let (acc_n, _step) = minimal_pow2_step_below(eps);
-        let domain = unit_disk_radius(acc_n, r_f) ;
+        let domain = unit_disk_radius(acc_n, r_f);
         let mut img: Vec<ComplexDyadic> = Vec::with_capacity(domain.len());
         for &z in domain.iter() {
             img.push(f.eval(&z));
-        } 
+        }
         let grid_bitmap = covering_grid_bitmap(&img, eps, delta);
         // println!("{}", grid_bitmap.height * grid_bitmap.width);
         let l_val = landau_l_via_edt_from_bitmap(&grid_bitmap, delta);
         if plot {
-            println!("{}, {} is eps, delta", eps.to_f64(), delta.to_f64());
+            println!(
+                "{}, {} is eps, delta",
+                eps.to_f64(),
+                delta.to_f64()
+            );
             plot_set(&img, "test_image.png");
             let grid_set = create_covering_grid(&img, eps, delta);
             plot_covering_grid(&grid_set, "test_grid.png");
         }
         l_val
-    }) 
+    })
     .await
     .expect("worker panicked")
 }
@@ -302,7 +316,7 @@ pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_s
 pub async fn approximate_all_words_length(
     length: usize,
     disk_decrease: i32,
-    m_seq: Vec<Dyadic>
+    m_seq: Vec<Dyadic>,
 ) -> (f64, Vec<u8>) {
     let words: Vec<Vec<u8>> = generate_all_words(length);
 
@@ -349,7 +363,8 @@ pub async fn approximate_all_words(
                     disk_decrease,
                     (*m_seq).clone(),
                     /*plot:*/ false,
-                ).await;
+                )
+                .await;
                 (w, l)
             }
         }))
@@ -376,14 +391,12 @@ pub async fn approximate_all_words(
         disk_decrease,
         (*m_seq).clone(),
         /*plot:*/ true,
-    ).await;
+    )
+    .await;
 
-    println!("Best word: {:?}\nMin approx = {}", best_word, best_l);
+    println!(
+        "Best word: {:?}\nMin approx = {}",
+        best_word, best_l
+    );
     best_l
 }
-
-
-
-
-
-

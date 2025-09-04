@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 use std::f64::consts::PI;
+use std::path::{Path, PathBuf};
 
 use plotters::prelude::*;
 
 use crate::covering_grids::extreme_points;
 use crate::dyadic::ComplexDyadic;
-use std::path::{Path, PathBuf};
 
 
 fn plots_path(filename: &str) -> PathBuf {
@@ -26,21 +26,21 @@ pub fn plot_set(
     points: &Vec<ComplexDyadic>,
     filename: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Render to PNG on disk through Plotters (no image crate needed)
+    // Render to PNG on disk through Plotters
     let out_path = plots_path(filename);
     let root = BitMapBackend::new(out_path.to_str().unwrap(), (600, 600)).into_drawing_area();
 
     // Dark background to make colors pop
     root.fill(&RGBColor(10, 12, 16))?;
 
-    // Compute padded bounding box from your helper
+    // Compute padded bounding box from extremes
     let extremes = extreme_points(points).ok_or("extreme_points returned None")?;
     let x_min = extremes[0].re.to_f64() - 1.0;
     let x_max = extremes[1].re.to_f64() + 1.0;
     let y_min = extremes[2].im.to_f64() - 1.0;
     let y_max = extremes[3].im.to_f64() + 1.0;
 
-    // Build chart; you can hide mesh if you want a cleaner image
+    // Build chart
     let mut chart = ChartBuilder::on(&root)
         .margin(10)
         .x_label_area_size(20)
@@ -122,7 +122,7 @@ fn hsv_to_rgb_u8(h: f64, s: f64, v: f64) -> RGBColor {
 
 fn color_from_complex_rgb(x: f64, y: f64) -> RGBColor {
     // Hue from argument
-    let arg = y.atan2(x); // [-π, π]
+    let arg = y.atan2(x); // [-pi, pi]
     let hue = (arg + PI) / (2.0 * PI); // [0,1]
     // Value from log|w| stripes
     let r = (x * x + y * y).sqrt();
@@ -134,7 +134,6 @@ fn color_from_complex_rgb(x: f64, y: f64) -> RGBColor {
     let v = 0.25 + 0.75 * stripes; // prevent over-dark regions
     hsv_to_rgb_u8(hue, 1.0, v)
 }
-
 
 
 

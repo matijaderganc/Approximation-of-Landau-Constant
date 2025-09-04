@@ -1,6 +1,8 @@
-use crate::dyadic::{ComplexDyadic, Dyadic, Interval};
-use rand::Rng;
 use std::collections::LinkedList;
+
+use rand::Rng;
+
+use crate::dyadic::{ComplexDyadic, Dyadic, Interval};
 
 
 fn vec_to_linked_list(vec: Vec<u8>) -> LinkedList<u8> {
@@ -83,8 +85,11 @@ fn select_matching(n: usize, vec1: &[usize], vec2: &[u8]) -> Vec<u8> {
 
 pub fn psi_infinity(m_seq: &[Dyadic], t_seq: &[usize], word: &[u8]) -> Vec<ComplexDyadic> {
     let mut out = Vec::new();
-    out.push(ComplexDyadic::new(Dyadic::new(1, 0), Dyadic::new(0, 0)));
-    #[allow(clippy::needless_range_loop)] 
+    out.push(ComplexDyadic::new(
+        Dyadic::new(1, 0),
+        Dyadic::new(0, 0),
+    ));
+    #[allow(clippy::needless_range_loop)]
     for n in 0..m_seq.len() {
         let word_on_step = select_matching(n, t_seq, word);
         let interval1 = Interval::new(
@@ -129,22 +134,25 @@ pub fn t_vector(len: usize) -> Vec<usize> {
     t_stream().take(len).collect()
 }
 
-
+// Could also be in dyadic.rs...
 fn dyadic_ceil_with_exp(x: f64, exp: i32) -> Dyadic {
     // scale = 2^{-exp}; if exp = -n, scale = 2^{n}
-    let step = (2.0f64).powi(exp); 
+    let step = (2.0f64).powi(exp);
     let y = x / step;
 
     let y_bumped = y + (y.abs() * f64::EPSILON + 1e-18);
     let k = y_bumped.ceil() as i128;
-    Dyadic::new(k, exp)     // equals num * 2^{exp} >= x
+    Dyadic::new(k, exp) // equals num * 2^{exp} >= x
 }
 
+// m_n used in later computations
 pub fn m_n(n: usize) -> Dyadic {
     let c = 1.0 + (2.0f64).powi(-100); // c = 1 + 2^{-100}
     let base = c * std::f64::consts::E * ((n as f64) + 2.0) * 0.5;
     dyadic_ceil_with_exp(base, -(n as i32)) // step = 2^{-n}
 }
+
+// vector of m_n
 pub fn m_vec(n_terms: usize) -> Vec<Dyadic> {
     (1..=n_terms).map(m_n).collect()
 }

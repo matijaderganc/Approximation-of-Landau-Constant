@@ -29,6 +29,7 @@ fn dyadic_floor_bits(x: f64, prec_bits: i32) -> Dyadic {
     if !x.is_finite() || x <= 0.0 {
         return Dyadic::zero();
     }
+    // shift 1 by prec_bits to the left
     let scale: i128 = 1i128 << prec_bits;
     let n = (x * (scale as f64)).floor() as i128;
     Dyadic::new(n, -prec_bits).reduce()
