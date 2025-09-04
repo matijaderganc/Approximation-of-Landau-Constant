@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use axum::{
     Router,
@@ -9,15 +10,17 @@ use axum::{
 };
 use serde::Deserialize;
 use tokio::{net::TcpListener, task};
-use std::time::Instant;
 
-use crate::{covering_grids::{covering_grid_bitmap, unit_disk_n}, dyadic::Dyadic};
+use crate::edt::landau_l_via_edt_from_bitmap;
 // NEW: bring the sweep into scope
 use crate::evaluation::{approximate_all_words, calculate_random};
 use crate::holomorphic::{BoundingSequence, ComplexFunction, ExpansionCoefficients};
 use crate::plot::plot_set;
 use crate::psi::{m_vec, psi_infinity, t_vector};
-use crate::edt::{landau_l_via_edt_from_bitmap};
+use crate::{
+    covering_grids::{covering_grid_bitmap, unit_disk_n},
+    dyadic::Dyadic,
+};
 
 const CONTACT_EMAIL: &str = "landau@constant.com";
 
@@ -64,8 +67,8 @@ fn common_css() -> &'static str {
 
 // Navigation html code
 fn nav_html() -> String {
-  format!(
-      r#"
+    format!(
+        r#"
   <div class="nav">
     <div class="nav-inner">
       <a class="brand" href="/">Landau Explorer</a>
@@ -77,22 +80,22 @@ fn nav_html() -> String {
     </div>
   </div>
   "#
-  )
+    )
 }
 
 fn escape_html(s: &str) -> String {
-  let mut out = String::with_capacity(s.len());
-  for ch in s.chars() {
-      match ch {
-          '&' => out.push_str("&amp;"),
-          '<' => out.push_str("&lt;"),
-          '>' => out.push_str("&gt;"),
-          '"' => out.push_str("&quot;"),
-          '\'' => out.push_str("&#39;"),
-          _ => out.push(ch),
-      }
-  }
-  out
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            _ => out.push(ch),
+        }
+    }
+    out
 }
 
 // Footer with contact email
@@ -146,29 +149,33 @@ type SharedState = Arc<AppState>;
 #[derive(Deserialize)]
 struct PlotForm {
     word: String,
-    acc_n: Option<i32>, 
+    acc_n: Option<i32>,
 }
 
 #[derive(Deserialize)]
 struct RandomForm {
-  length: usize,   // word length
-  number: usize,   // how many random words to try
-  acc_n: i32,      // disk accuracy n (step = 2^{-n})
+    length: usize, // word length
+    number: usize, // how many random words to try
+    acc_n: i32,    // disk accuracy n (step = 2^{-n})
 }
 
-const DEFAULT_PLOT_ACC_N: i32 = 7;   // for /plot (step = 2^-n)
+const DEFAULT_PLOT_ACC_N: i32 = 7; // for /plot (step = 2^-n)
 const DEFAULT_CALC_ALL_LEN: usize = 3;
 const DEFAULT_CALC_ALL_STEP: i32 = 1;
 
-fn default_calc_all_len() -> usize { DEFAULT_CALC_ALL_LEN }
-fn default_calc_all_step() -> i32 { DEFAULT_CALC_ALL_STEP }
+fn default_calc_all_len() -> usize {
+    DEFAULT_CALC_ALL_LEN
+}
+fn default_calc_all_step() -> i32 {
+    DEFAULT_CALC_ALL_STEP
+}
 #[derive(Deserialize)]
 struct CalcAllForm {
-  #[serde(default = "default_calc_all_len")]
-  length: usize,
+    #[serde(default = "default_calc_all_len")]
+    length: usize,
 
-  #[serde(default = "default_calc_all_step")]
-  step: i32,
+    #[serde(default = "default_calc_all_step")]
+    step: i32,
 }
 
 /// Both "1,2,3,4" or "1234" work fine
@@ -187,7 +194,7 @@ fn parse_word(input: &str) -> Vec<u8> {
     }
 }
 async fn random_page() -> Html<String> {
-  let inner = r#"
+    let inner = r#"
   <div class="card">
     <h1>Random words</h1>
     <p>Generate a batch of random words, evaluate λ<sub>f</sub> via EDT, and plot the best one.</p>
@@ -211,7 +218,7 @@ async fn random_page() -> Html<String> {
     </form>
   </div>
   "#;
-  Html(page_html("Landau Explorer — Random", inner))
+    Html(page_html("Landau Explorer — Random", inner))
 }
 
 async fn home() -> Html<String> {
@@ -261,7 +268,7 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
     // Parse inputs
     let word_vec = parse_word(&form.word);
     let acc_n_ui = form.acc_n.unwrap_or(DEFAULT_PLOT_ACC_N).clamp(3, 18);
-    let epsilon = Dyadic::new(1, -acc_n_ui) ;
+    let epsilon = Dyadic::new(1, -acc_n_ui);
     let delta = epsilon * Dyadic::new(1, -2);
     let word = form.word.trim().to_string();
     let acc_n_display = match form.acc_n {
@@ -270,67 +277,74 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
     };
 
     // Build inputs for the blocking job
-    let m_seq = Arc::new(vec![Dyadic::new(1, -1), Dyadic::new(1, -1), Dyadic::new(1, -2), Dyadic::new(1, -2), ]);
+    let m_seq = Arc::new(vec![
+        Dyadic::new(1, -1),
+        Dyadic::new(1, -1),
+        Dyadic::new(1, -2),
+        Dyadic::new(1, -2),
+    ]);
     let t_seq = Arc::new(t_vector(1000));
     let word_job = word_vec.clone();
 
-    let res = task::spawn_blocking(move || -> Result<(Vec<u8>, f64, usize, u128), String> {
-        // Build f' and f
-        let coeffs = psi_infinity(&m_seq, &t_seq, &word_job);
-        let fprime = ComplexFunction::new(
-            BoundingSequence::new((*m_seq).clone()),
-            ExpansionCoefficients::new(coeffs),
-        );
-        let f = fprime.antiderivative();
+    let res = task::spawn_blocking(
+        move || -> Result<(Vec<u8>, f64, usize, u128), String> {
+            // Build f' and f
+            let coeffs = psi_infinity(&m_seq, &t_seq, &word_job);
+            let fprime = ComplexFunction::new(
+                BoundingSequence::new((*m_seq).clone()),
+                ExpansionCoefficients::new(coeffs),
+            );
+            let f = fprime.antiderivative();
 
-        // Create unit disk of radius 1.0, with step = 2^-acc_n_ui
-        let domain = unit_disk_n(-acc_n_ui);
+            // Create unit disk of radius 1.0, with step = 2^-acc_n_ui
+            let domain = unit_disk_n(-acc_n_ui);
 
-        // Evaluate function
-        let mut img = Vec::with_capacity(domain.len());
-        for &z in &domain {
-            img.push(f.eval(&z));
-        }
-        let t0 = Instant::now();
+            // Evaluate function
+            let mut img = Vec::with_capacity(domain.len());
+            for &z in &domain {
+                img.push(f.eval(&z));
+            }
+            let t0 = Instant::now();
 
-        // build covering grid
-        let bitmap = covering_grid_bitmap(&img, epsilon, delta);
-        // If your function returns (bitmap, meta), split it accordingly.
+            // build covering grid
+            let bitmap = covering_grid_bitmap(&img, epsilon, delta);
+            // If your function returns (bitmap, meta), split it accordingly.
 
-        let grid_points = bitmap.width * bitmap.height; // or bitmap.width * bitmap.height if you have dims
+            let grid_points = bitmap.width * bitmap.height; // or bitmap.width * bitmap.height if you have dims
 
-        // >>> run EDT to estimate lambda
-        let lambda_f = landau_l_via_edt_from_bitmap(&bitmap, delta);
+            // >>> run EDT to estimate lambda
+            let lambda_f = landau_l_via_edt_from_bitmap(&bitmap, delta);
 
-        #[allow(clippy::unnecessary_cast)]
-        let elapsed_ms = t0.elapsed().as_millis() as u128;
+            #[allow(clippy::unnecessary_cast)]
+            let elapsed_ms = t0.elapsed().as_millis() as u128;
 
-        // Plot to temp path
-        let tmpdir = tempfile::tempdir().map_err(|e| e.to_string())?;
-        let path = tmpdir.path().join("random_plot.png");
-        plot_set(&img, path.to_str().ok_or("invalid temp path")?)
-            .map_err(|e| format!("plot_set failed: {e}"))?;
+            // Plot to temp path
+            let tmpdir = tempfile::tempdir().map_err(|e| e.to_string())?;
+            let path = tmpdir.path().join("random_plot.png");
+            plot_set(&img, path.to_str().ok_or("invalid temp path")?)
+                .map_err(|e| format!("plot_set failed: {e}"))?;
 
-        // Read file
-        let png_bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
-        let png_magic: &[u8] = b"\x89PNG\r\n\x1a\n";
-        if png_bytes.len() < 8 || &png_bytes[..8] != png_magic {
-            return Err(format!("not a PNG ({} bytes)", png_bytes.len()));
-        }
-        Ok((png_bytes, lambda_f, grid_points, elapsed_ms))
-    })
+            // Read file
+            let png_bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+            let png_magic: &[u8] = b"\x89PNG\r\n\x1a\n";
+            if png_bytes.len() < 8 || &png_bytes[..8] != png_magic {
+                return Err(format!("not a PNG ({} bytes)", png_bytes.len()));
+            }
+            Ok((png_bytes, lambda_f, grid_points, elapsed_ms))
+        },
+    )
     .await;
 
     match res {
-      Ok(Ok((png_bytes, lambda_hat, grid_points, elapsed_ms))) => {
-        {
-            let mut guard = state.png.lock().unwrap();
-            *guard = png_bytes;
-        }
+        Ok(Ok((png_bytes, lambda_hat, grid_points, elapsed_ms))) => {
+            {
+                let mut guard = state.png.lock().unwrap();
+                *guard = png_bytes;
+            }
 
-        // Render
-        let inner = format!(
-                  r#"
+            // Render
+            let inner = format!(
+                r#"
         <div class="card">
         <span class="badge">Plot</span>
         <h1>Word <code>{word_display}</code>, step = 2<sup>-{acc_n_display}</sup></h1>
@@ -343,16 +357,16 @@ async fn plot(State(state): State<SharedState>, Form(form): Form<PlotForm>) -> i
         <img src="/img" alt="plot" style="width:100%; border-radius:.5rem; border:1px solid rgba(255,255,255,.08)" />
         </div>
         "#,
-        word_display = escape_html(&word),
-            acc_n_display = acc_n_display,
-            lambda      = lambda_hat,
-            grid_pts    = grid_points,
-            elapsed_ms  = elapsed_ms,
-        );
-        Html(page_html("Landau Explorer — Plot", &inner)).into_response()
-    }
-    Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
-    Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+                word_display = escape_html(&word),
+                acc_n_display = acc_n_display,
+                lambda = lambda_hat,
+                grid_pts = grid_points,
+                elapsed_ms = elapsed_ms,
+            );
+            Html(page_html("Landau Explorer — Plot", &inner)).into_response()
+        }
+        Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 
@@ -417,8 +431,8 @@ async fn calc_all(
     State(state): State<SharedState>,
     Form(form): Form<CalcAllForm>,
 ) -> impl IntoResponse {
-    let length = form.length;        // now defaults to 3 if omitted
-    let step   = form.step; // guard
+    let length = form.length; // now defaults to 3 if omitted
+    let step = form.step; // guard
     let disk_decrease = -step;
 
     // Keep m_seq
@@ -494,25 +508,26 @@ pub async fn run_server() -> anyhow::Result<()> {
 }
 
 async fn random_run(
-  State(state): State<SharedState>,
-  Form(form): Form<RandomForm>,
+    State(state): State<SharedState>,
+    Form(form): Form<RandomForm>,
 ) -> impl IntoResponse {
-  let t0 = Instant::now();
+    let t0 = Instant::now();
 
-  // Match your plotting page’s convention:
-  // epsilon = 2^(-acc_n), delta = epsilon * 2^-2 = 2^(-(acc_n+2))
-  let acc_n = form.acc_n.clamp(3, 18);
-  let delta = Dyadic::new(1, -(acc_n + 2));
+    // Match your plotting page’s convention:
+    // epsilon = 2^(-acc_n), delta = epsilon * 2^-2 = 2^(-(acc_n+2))
+    let acc_n = form.acc_n.clamp(3, 18);
+    let delta = Dyadic::new(1, -(acc_n + 2));
 
-  // This will now also PLOT the best image to "random_plot.png" (see evaluation::calculate_random below)
-  let (best_word, best_l) = calculate_random(form.number, form.length as i32, delta, -acc_n).await;
+    // This will now also PLOT the best image to "random_plot.png" (see evaluation::calculate_random below)
+    let (best_word, best_l) =
+        calculate_random(form.number, form.length as i32, delta, -acc_n).await;
 
-  // Load that image into in-memory PNG for /img
-  match std::fs::read("plots/random_plot.png") {
+    // Load that image into in-memory PNG for /img
+    match std::fs::read("plots/random_plot.png") {
       Ok(bytes) => {
           *state.png.lock().unwrap() = bytes;
 
-          let elapsed_ms = t0.elapsed().as_millis() as u128;
+          let elapsed_ms = t0.elapsed().as_millis();
           let best_display = format!("{:?}", best_word);
 
           let inner = format!(r#"
