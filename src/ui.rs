@@ -204,7 +204,7 @@ async fn random_page() -> Html<String> {
         </div>
         <div>
           <label>Disk accuracy n (step = 2<sup>−n</sup>)</label>
-          <input type="number" name="acc_n" min="6" max="18" value="7" required />
+          <input type="number" name="acc_n" min="6" max="18" value="6" required />
         </div>
       </div>
       <p><button type="submit">Run random search</button></p>
