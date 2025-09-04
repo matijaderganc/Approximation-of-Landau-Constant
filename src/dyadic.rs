@@ -263,8 +263,8 @@ impl ComplexDyadic {
             if exp == 0 {
                 ComplexDyadic::one()
             } else if exp % 2 == 0 {
-                let half = fast_pow(base * base, exp / 2);
-                half
+                fast_pow(base * base, exp / 2) //return half
+                
             } else {
                 base * fast_pow(base, exp - 1)
             }
@@ -346,10 +346,10 @@ impl Sub for ComplexDyadic {
 impl Mul for ComplexDyadic {
     type Output = ComplexDyadic;
     fn mul(self, other: ComplexDyadic) -> ComplexDyadic {
-        return ComplexDyadic::new(
+        ComplexDyadic::new(
             self.re * other.re - self.im * other.im,
             self.re * other.im + self.im * other.re,
-        ); // Again, we need to make sure this runs in terms of operations
+        ) // Again, we need to make sure this runs in terms of operations
     }
 }
 
@@ -370,7 +370,7 @@ impl Div for ComplexDyadic {
 }
 
 // Adding to vectors of dyadic numbers which is then used when operating with BoundingSequences and ExpansionCoefficients
-pub fn add_vec(a: &Vec<Dyadic>, b: &Vec<Dyadic>) -> Vec<Dyadic> {
+pub fn add_vec(a: &[Dyadic], b: &[Dyadic]) -> Vec<Dyadic> {
     let len = a.len().max(b.len()); // Use the length of the longer vector
     let mut result = Vec::with_capacity(len);
 
@@ -385,7 +385,7 @@ pub fn add_vec(a: &Vec<Dyadic>, b: &Vec<Dyadic>) -> Vec<Dyadic> {
 }
 
 // Adding and subtracting complex vectors
-pub fn add_complex_vec(a: &Vec<ComplexDyadic>, b: &Vec<ComplexDyadic>) -> Vec<ComplexDyadic> {
+pub fn add_complex_vec(a: &[ComplexDyadic], b: &[ComplexDyadic]) -> Vec<ComplexDyadic> {
     let len = a.len().max(b.len()); // Use the length of the longer vector
     let mut result = Vec::with_capacity(len);
 
@@ -406,7 +406,7 @@ pub fn add_complex_vec(a: &Vec<ComplexDyadic>, b: &Vec<ComplexDyadic>) -> Vec<Co
     result
 }
 
-pub fn sub_complex_vec(a: &Vec<ComplexDyadic>, b: &Vec<ComplexDyadic>) -> Vec<ComplexDyadic> {
+pub fn sub_complex_vec(a: &[ComplexDyadic], b: &[ComplexDyadic]) -> Vec<ComplexDyadic> {
     let len = a.len().max(b.len()); // Use the length of the longer vector
     let mut result = Vec::with_capacity(len);
 
@@ -492,30 +492,6 @@ impl fmt::Display for ComplexDyadic {
 }
 
 
-fn split(rect: Interval, n: u8) -> Interval {
-    match rect {
-        Interval::Empty => Interval::Empty,
-        Interval::Bounded(x_lower, x_upper, y_lower, y_upper) => {
-            let x_mid = (x_lower + x_upper) * (Dyadic::new(1, -1));
-            let y_mid = (y_lower + y_upper) * (Dyadic::new(1, -1));
 
-            match n {
-                1 => Interval::new(x_lower, x_mid, y_lower, y_mid),
-                2 => Interval::new(x_mid, x_upper, y_lower, y_mid),
-                3 => Interval::new(x_lower, x_mid, y_mid, y_upper),
-                4 => Interval::new(x_mid, x_upper, y_mid, y_upper),
-                _ => Interval::Empty,
-            }
-        }
-    }
-}
 
-pub fn psi(int1: Interval, lst: &LinkedList<u8>) -> Interval {
-    match lst.front() {
-        None => int1,
-        Some(&fst) => psi(
-            split(int1, fst),
-            &lst.iter().skip(1).cloned().collect(),
-        ),
-    }
-}
+

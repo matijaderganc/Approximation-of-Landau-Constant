@@ -1,8 +1,7 @@
 use std::collections::LinkedList;
 
-use landau::dyadic::Interval;
-use landau::dyadic::{ComplexDyadic, Dyadic};
-use landau::dyadic::{add_complex_vec, add_vec, psi};
+use landau::psi::psi;
+use landau::dyadic::{ComplexDyadic, Dyadic, Interval, add_complex_vec, add_vec};
 
 #[test]
 fn addition_dyadic() {

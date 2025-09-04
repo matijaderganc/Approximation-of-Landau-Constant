@@ -1,4 +1,4 @@
-use crate::dyadic::{psi, ComplexDyadic, Dyadic, Interval};
+use crate::dyadic::{ComplexDyadic, Dyadic, Interval};
 use rand::Rng;
 use std::collections::LinkedList;
 
@@ -40,6 +40,33 @@ pub fn generate_all_words(length: usize) -> Vec<Vec<u8>> {
     }
 
     result
+}
+fn split(rect: Interval, n: u8) -> Interval {
+    match rect {
+        Interval::Empty => Interval::Empty,
+        Interval::Bounded(x_lower, x_upper, y_lower, y_upper) => {
+            let x_mid = (x_lower + x_upper) * (Dyadic::new(1, -1));
+            let y_mid = (y_lower + y_upper) * (Dyadic::new(1, -1));
+
+            match n {
+                1 => Interval::new(x_lower, x_mid, y_lower, y_mid),
+                2 => Interval::new(x_mid, x_upper, y_lower, y_mid),
+                3 => Interval::new(x_lower, x_mid, y_mid, y_upper),
+                4 => Interval::new(x_mid, x_upper, y_mid, y_upper),
+                _ => Interval::Empty,
+            }
+        }
+    }
+}
+
+pub fn psi(int1: Interval, lst: &LinkedList<u8>) -> Interval {
+    match lst.front() {
+        None => int1,
+        Some(&fst) => psi(
+            split(int1, fst),
+            &lst.iter().skip(1).cloned().collect(),
+        ),
+    }
 }
 
 fn select_matching(n: usize, vec1: &[usize], vec2: &[u8]) -> Vec<u8> {

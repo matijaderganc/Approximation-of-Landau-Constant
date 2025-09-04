@@ -9,6 +9,7 @@ fn single_source_parabola() {
     f[k] = 0.0;
 
     let g = edt_1d_squared(&f);
+    #[allow(clippy::needless_range_loop)]
     for i in 0..n {
         let ref_val = (i as f64 - k as f64).powi(2);
         assert!(

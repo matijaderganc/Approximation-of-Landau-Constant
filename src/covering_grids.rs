@@ -182,15 +182,9 @@ pub fn grid_approx(grid : &HashSet<ComplexDyadic>, delta : Dyadic) -> f64 {
     max.unwrap() - (delta.to_f64()*4.0)
 }
 
-// we will now write a faster version of grid creation that creates a hash map directly and doesnt bother with 
-// complex dyadics, as the type is not important for creating grids and calculating distances
-/// Build an ε-covering grid of the image as a **direct bitmap** (fast).
-/// - `points`: samples of the image f(D_r)
-/// - `epsilon`: ε/4 or whatever you use upstream for covering
-/// - `delta`: lattice step δ (must satisfy δ ≤ ε/4 for the proof)
-///
-/// This is much faster than inserting ComplexDyadics into a HashSet: it works
-/// in lattice units (integers + f64) and only allocates the dense bitmap once.
+/// We will now write a faster version of grid creation that creates a hash map directly and doesnt bother with 
+/// complex dyadics, as the type is not important for creating grids and calculating distances. We can compute everything 
+/// in u8 grid, and then just multiply the result by delta. This saves us a lot of time compared to previous approach
 pub struct GridBitmap {
     pub width: usize,
     pub height: usize,
@@ -267,6 +261,7 @@ pub fn covering_grid_bitmap(points: &[ComplexDyadic], epsilon: Dyadic, delta: Dy
     GridBitmap { width, height, origin_i: min_i, origin_j: min_j, data }
 }
 
+/// we use this function just so we can plot our covering grids as HashSets of ComplexDyadics
 pub fn bitmap_to_complex_set(g: &GridBitmap, delta: Dyadic) -> HashSet<ComplexDyadic> {
     let mut out = HashSet::new();
     if g.data.is_empty() { return out; }
@@ -284,9 +279,8 @@ pub fn bitmap_to_complex_set(g: &GridBitmap, delta: Dyadic) -> HashSet<ComplexDy
         im_vals.push(Dyadic::new(j, 0) * delta);
     }
 
-    // Emit a ComplexDyadic for each inside pixel
     out.reserve(g.width * g.height / 8 + 1); 
-    #[allow(clippy::needless_range_loop)] // rough pre-reserve to reduce rehashing
+    #[allow(clippy::needless_range_loop)] 
     for y in 0..g.height {
         for x in 0..g.width {
             if g.data[y * g.width + x] != 0 {

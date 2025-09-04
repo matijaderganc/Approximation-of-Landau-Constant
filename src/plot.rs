@@ -5,14 +5,30 @@ use plotters::prelude::*;
 
 use crate::covering_grids::extreme_points;
 use crate::dyadic::ComplexDyadic;
+use std::path::{Path, PathBuf};
 
+
+fn plots_path(filename: &str) -> PathBuf {
+    let out_dir = Path::new("plots");
+    // Create the folder if missing
+    let _ = std::fs::create_dir_all(out_dir);
+
+    let p = Path::new(filename);
+    if p.components().count() > 1 {
+        // Caller already gave a path; use as-is
+        p.to_path_buf()
+    } else {
+        out_dir.join(p)
+    }
+}
 
 pub fn plot_set(
     points: &Vec<ComplexDyadic>,
     filename: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Render to PNG on disk through Plotters (no image crate needed)
-    let root = BitMapBackend::new(filename, (900, 900)).into_drawing_area();
+    let out_path = plots_path(filename);
+    let root = BitMapBackend::new(out_path.to_str().unwrap(), (600, 600)).into_drawing_area();
 
     // Dark background to make colors pop
     root.fill(&RGBColor(10, 12, 16))?;
@@ -46,7 +62,7 @@ pub fn plot_set(
     }))?;
 
     root.present()?; // ensure file is written
-    println!("Grid plotted (domain-colored) to {}", filename);
+    println!("Set plotted to {}", out_path.display());
     Ok(())
 }
 
@@ -54,12 +70,14 @@ pub fn plot_covering_grid(
     grid: &HashSet<ComplexDyadic>,
     filename: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let out_path = plots_path(filename);
+    let root = BitMapBackend::new(out_path.to_str().unwrap(), (600, 600)).into_drawing_area();
+
     let extremes = extreme_points(&grid.iter().copied().collect()).unwrap();
     let min_real = extremes[0].re.to_f64() - 1.0;
     let max_real = extremes[1].re.to_f64() + 1.0;
     let min_imag = extremes[2].im.to_f64() - 1.0;
     let max_imag = extremes[3].im.to_f64() + 1.0;
-    let root = BitMapBackend::new(filename, (600, 600)).into_drawing_area();
     root.fill(&WHITE)?;
     let mut chart = ChartBuilder::on(&root)
         .caption("ε-Covering Grid", ("sans-serif", 30))
@@ -74,7 +92,7 @@ pub fn plot_covering_grid(
         let (x, y) = (z.re.to_f64(), z.im.to_f64());
         Circle::new((x, y), 1, RED.filled())
     }))?;
-    println!("Grid plotted to {}", filename);
+    println!("Grid plotted to {}", out_path.display());
     Ok(())
 }
 

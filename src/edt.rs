@@ -4,11 +4,10 @@ use std::f64;
 use crate::covering_grids::GridBitmap;
 use crate::dyadic::{ComplexDyadic, Dyadic};
 
-// Felzenszwalb & Huttenlocher (2004), "Distance Transforms of Sampled Functions"
-// Given f[q] where f[p]=0 for "sources" and f[p]=∞ elsewhere, returns
-// g[q] = min_p ( (q-p)^2 + f[p] ).
+// Source for such algorithms is : Felzenszwalb & Huttenlocher (2004), "Distance Transforms of Sampled Functions"
 const INF: f64 = 1e20;
 
+/// runs edt on one row or column
 pub fn edt_1d_squared(f: &[f64]) -> Vec<f64> {
     let n = f.len();
     let mut v = vec![0usize; n]; // positions of parabolas in envelope
@@ -53,7 +52,7 @@ pub fn edt_1d_squared(f: &[f64]) -> Vec<f64> {
     g
 }
 
-
+/// First turns points inside to INFINITY, points in the compliment to 0. Then first does EDT over columns, then over rows.
 pub fn edt_2d_squared(img: &mut [f64], width: usize, height: usize) {
     // first pass: columns
     {
@@ -101,14 +100,6 @@ pub fn print_grid(label: &str, img: &[f64], w: usize, h: usize, sqrt: bool) {
 }
 
 /// Compute l(ε,δ,G) in linear time using EDT, from a grid of ComplexDyadic.
-/// - `grid`: your image set G as lattice points (ComplexDyadic snapped by δ when plotting).
-/// - `delta`: the lattice step δ (Dyadic).
-///
-/// Steps:
-/// 1) snap ComplexDyadic -> (i,j) integer lattice via δ
-/// 2) build a dense field over a 1-cell padded bbox: 0.0 on complement, INF on inside
-/// 3) run edt_2d_squared in-place (squared distances to nearest complement)
-/// 4) read max distance over INSIDE sites, convert to metric: δ + δ * sqrt(max_sq)
 pub fn landau_l_with_edt_from_complex_set(grid: &HashSet<ComplexDyadic>, delta: Dyadic) -> f64 {
     assert!(!grid.is_empty(), "grid is empty");
 
@@ -173,6 +164,8 @@ pub fn landau_l_with_edt_from_complex_set(grid: &HashSet<ComplexDyadic>, delta: 
     step + step * max_sq.sqrt()
 }
 
+/// Compute the size of largest disk that can fit inside of a grid, preseted as GridBitmap. Currently in use. First turns it into
+/// a field with values 0 or INF, then runs EDT.
 pub fn landau_l_via_edt_from_bitmap(g: &GridBitmap, delta: Dyadic) -> f64 {
     // Build the EDT field: 0 at complement, INF at inside
     let mut field = vec![0.0f64; g.width * g.height];

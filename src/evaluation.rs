@@ -13,17 +13,15 @@ use crate::psi::{psi_infinity, t_vector, generate_all_words, generate_word};
 use crate::plot::{plot_covering_grid, plot_set};
 
 /// calculate_random approximates value of lambda for a "number" number of words on length word_length, on
-/// given delta for grid generation and disk_accuracy for a unit disk domain
+/// given delta for grid generation and disk_accuracy for a unit disk domain. Uses multiple cores for faster computing.
 pub async fn calculate_random(
     number: usize,
     word_length: i32,
     delta: Dyadic,
     disk_accuracy: i32,
 ) -> (Vec<u8>, f64) {
-    // δ = delta (grid step); ε must be 4δ in your pipeline
     let epsilon = (delta * Dyadic::new(1, 2)).reduce(); // == delta * 4
 
-    // Shared, read-only inputs
     let m_seq = Arc::new(vec![
         Dyadic::new(1, -1),
         Dyadic::new(1, -1),
@@ -31,16 +29,15 @@ pub async fn calculate_random(
         Dyadic::new(1, -3),
         Dyadic::new(1, -3),
     ]);
+
     let t_seq   = Arc::new(t_vector(1000));
     let domain  = Arc::new(unit_disk_n(disk_accuracy));
 
-    // Bound in-flight jobs to #logical cores (good default for CPU-bound work)
     let parallelism = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4);
 
-    // Kick off N trials; each trial runs on a blocking worker thread.
-    let mut results = stream::iter(0..number)
+        let mut results = stream::iter(0..number)
         .map(|_| {
             let domain = Arc::clone(&domain);
             let m_seq  = Arc::clone(&m_seq);
@@ -83,7 +80,7 @@ pub async fn calculate_random(
         }
     }
 
-    // Re-run the best word once more and plot (same as your original)
+    // Re-run the best word once more and plot its image
     {
         let coeffs = psi_infinity(&m_seq, &t_seq, &best_word);
         let fprime = ComplexFunction::new(
@@ -301,7 +298,7 @@ pub async fn calculate_for_word_updated(word : Vec<u8>, disk_decrease : i32, m_s
 }
 
 
-/// approximates Landau's constant as minimum of all values on words specific lenght, evaluated on domain of disk with radius 1 - disk_decrease
+/// Approximates Landau's constant as minimum of all values on words specific lenght, evaluated on domain of disk with radius 1 - disk_decrease
 pub async fn approximate_all_words_length(
     length: usize,
     disk_decrease: i32,
@@ -322,7 +319,7 @@ pub async fn approximate_all_words_length(
     (best_l, best_word)
 }
 
-/// approximates Landau's constant as minimum of all values on words with length up or equal to max_length, evaluated on domain of disk with radius 1 - disk_decrease (step)
+/// Approximates Landau's constant as minimum of all values on words with length up or equal to max_length, evaluated on domain of disk with radius 1 - disk_decrease (step)
 pub async fn approximate_all_words(
     max_length: usize,
     disk_decrease: i32,

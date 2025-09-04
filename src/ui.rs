@@ -428,7 +428,7 @@ async fn calc_all(
     let approx = approximate_all_words(length, disk_decrease, m_seq).await;
 
     // After the sweep re-plots the best word, try to read the PNG it produced
-    let png_bytes = std::fs::read("test_image.png");
+    let png_bytes = std::fs::read("plots/test_image.png");
     match png_bytes {
         Ok(bytes) => {
             *state.png.lock().unwrap() = bytes;
@@ -508,7 +508,7 @@ async fn random_run(
   let (best_word, best_l) = calculate_random(form.number, form.length as i32, delta, -acc_n).await;
 
   // Load that image into in-memory PNG for /img
-  match std::fs::read("random_plot.png") {
+  match std::fs::read("plots/random_plot.png") {
       Ok(bytes) => {
           *state.png.lock().unwrap() = bytes;
 

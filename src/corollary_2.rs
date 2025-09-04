@@ -22,8 +22,6 @@ pub fn calculate_epsilon(r: f64, r_hat: Dyadic, rho: Dyadic) -> Dyadic {
     let e: i32 = cap_f.log2().floor() as i32;
     let delta = Dyadic::new(1, e).reduce();
     (rho * delta * Dyadic::new(1, -4)).reduce()
-    // (rho * delta * Dyadic::new(1, -4)).reduce()
-
 }
 
 ///  we floor dyadic numbers
@@ -79,7 +77,7 @@ pub fn certify_r_hat_rho(
     // sample f' on |z| = r_hat
     let n = n_samples.max(8);
     let dtheta = std::f64::consts::TAU / (n as f64);
-    let mut min_mag = f64::INFINITY;
+    let mut min_mag = f64::INFINITY; // we are interested in smallest absolute value of f'
 
     for j in 0..n {
         let theta = (j as f64) * dtheta;
