@@ -96,6 +96,45 @@ pub fn plot_covering_grid(
     Ok(())
 }
 
+pub fn plot_grid_complement(
+    grid: &HashSet<ComplexDyadic>,
+    filename: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let out_path = plots_path(filename);
+    let root = BitMapBackend::new(out_path.to_str().unwrap(), (600, 600)).into_drawing_area();
+
+    let points: Vec<_> = grid.iter().copied().collect();
+    let extremes = extreme_points(&points).ok_or("cannot plot an empty grid complement")?;
+    let raw_min_real = extremes[0].re.to_f64();
+    let raw_max_real = extremes[1].re.to_f64();
+    let raw_min_imag = extremes[2].im.to_f64();
+    let raw_max_imag = extremes[3].im.to_f64();
+    let padding = ((raw_max_real - raw_min_real).max(raw_max_imag - raw_min_imag) * 0.08)
+        .max(0.05);
+    let min_real = raw_min_real - padding;
+    let max_real = raw_max_real + padding;
+    let min_imag = raw_min_imag - padding;
+    let max_imag = raw_max_imag + padding;
+
+    root.fill(&WHITE)?;
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Grid Complement", ("sans-serif", 30))
+        .margin(20)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(min_real..max_real, min_imag..max_imag)?;
+
+    chart.configure_mesh().draw()?;
+    chart.draw_series(grid.iter().map(|z| {
+        let (x, y) = (z.re.to_f64(), z.im.to_f64());
+        Circle::new((x, y), 1, BLUE.filled())
+    }))?;
+
+    root.present()?;
+    println!("Grid complement plotted to {}", out_path.display());
+    Ok(())
+}
+
 fn hsv_to_rgb_u8(h: f64, s: f64, v: f64) -> RGBColor {
     // h in [0,1], s,v in [0,1]
     let h6 = (h.fract() + 1.0).fract() * 6.0;
@@ -137,31 +176,31 @@ fn color_from_complex_rgb(x: f64, y: f64) -> RGBColor {
 
 
 
-// pub fn plot_set(
-//     points: &Vec<ComplexDyadic>,
-//     filename: &str,
-// ) -> Result<(), Box<dyn std::error::Error>> {
-//     let root = BitMapBackend::new(filename, (600, 600)).into_drawing_area();
-//     root.fill(&WHITE)?;
-//     let extremes = extreme_points(points).unwrap();
-//     let x_min = &extremes[0].re.to_f64() - 1.0;
-//     let x_max = &extremes[1].re.to_f64() + 1.0;
-//     let y_min = &extremes[2].im.to_f64() - 1.0;
-//     let y_max = &extremes[3].im.to_f64() + 1.0;
-//     let mut chart = ChartBuilder::on(&root)
-//         .caption("Complex Dyadic Points", ("sans-serif", 25))
-//         .margin(20)
-//         .x_label_area_size(30)
-//         .y_label_area_size(30)
-//         .build_cartesian_2d(x_min..x_max, y_min..y_max)?;
+pub fn plot_set_old(
+    points: &Vec<ComplexDyadic>,
+    filename: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let root = BitMapBackend::new(filename, (600, 600)).into_drawing_area();
+    root.fill(&WHITE)?;
+    let extremes = extreme_points(points).unwrap();
+    let x_min = &extremes[0].re.to_f64() - 1.0;
+    let x_max = &extremes[1].re.to_f64() + 1.0;
+    let y_min = &extremes[2].im.to_f64() - 1.0;
+    let y_max = &extremes[3].im.to_f64() + 1.0;
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Complex Dyadic Points", ("sans-serif", 25))
+        .margin(20)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(x_min..x_max, y_min..y_max)?;
 
-//     chart.configure_mesh().draw()?;
+    chart.configure_mesh().draw()?;
 
-//     chart.draw_series(points.iter().map(|z| {
-//         let (x, y) = (z.re.to_f64(), z.im.to_f64());
-//         Circle::new((x, y), 2, RED.filled())
-//     }))?;
+    chart.draw_series(points.iter().map(|z| {
+        let (x, y) = (z.re.to_f64(), z.im.to_f64());
+        Circle::new((x, y), 2, RED.filled())
+    }))?;
 
-//     println!("Plot saved to '{}'", filename);
-//     Ok(())
-// }
+    println!("Plot saved to '{}'", filename);
+    Ok(())
+}
